@@ -1,0 +1,72 @@
+.register-container {
+  text-align: center;
+  padding: 30px;
+  background-color: #eaf2fb;
+  border-radius: 20px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.toggle-buttons button {
+  padding: 10px 20px;
+  margin: 10px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 1rem;
+  background-color: #b0d0f5;
+  transition: 0.3s;
+}
+
+.toggle-buttons button.active {
+  background-color: #5dade2;
+  color: white;
+}
+
+input {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+.submit, .register-form button {
+  padding: 12px 24px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 20px;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+}
+.submit:hover, .register-form button:hover {
+  background-color: #357ab8;
+}
+
+/* Responsividad */
+@media (max-width: 600px) {
+  .register-container {
+      width: 90%;
+      padding: 20px;
+  }
+
+  .toggle-buttons button {
+      width: 100%;
+      margin: 5px 0;
+  }
+
+  input {
+      font-size: 1rem;
+  }
+
+  .submit, .register-form button {
+      width: 100%;
+  }
+}
