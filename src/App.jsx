@@ -5,6 +5,9 @@ import Welcome from './pages/Welcome';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import NavigationBar from './components/NavigationBar';
+import FormularioEventoOficial from './pages/FormularioEventoOficial';
+import FormularioEventoNoOficial from './pages/FormularioEventoNoOficial';
+import MisEventos from './pages/MisEventos';
 import { Container } from 'react-bootstrap';
 
 function App() {
@@ -34,6 +37,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/home" element={<Home />} />
+          <Route path="/formulario-evento-oficial" element={<FormularioEventoOficial />} />
+          <Route path="/formulario-evento-no-oficial" element={<FormularioEventoNoOficial />} />
+          <Route path="/mis-eventos" element={<MisEventos />} />
         </Routes>
       </div>
     </div>

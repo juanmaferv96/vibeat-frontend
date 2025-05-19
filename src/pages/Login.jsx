@@ -1,16 +1,22 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import { Form, Button, Container, Alert } from 'react-bootstrap';
+import { Form, Button, Container, Alert, ButtonGroup } from 'react-bootstrap';
 
 function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ user: '', password: '' });
   const [error, setError] = useState('');
+  const [tipo, setTipo] = useState('usuario');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  const handleTipoChange = (nuevoTipo) => {
+    setTipo(nuevoTipo);
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -23,11 +29,14 @@ function Login() {
     }
 
     try {
-      const response = await apiClient.get(`http://localhost:8080/api/usuarios`);
-      const usuarioEncontrado = response.data.find((u) => u.user === user);
+      const endpoint = tipo === 'usuario' ? 'usuarios' : 'empresas';
+      const response = await apiClient.get(`/${endpoint}`);
+      const entidad = response.data.find((u) => u.user === user);
 
-      if (usuarioEncontrado && usuarioEncontrado.password === password) {
-        localStorage.setItem('usuario', usuarioEncontrado.user);
+      if (entidad && entidad.password === password) {
+        localStorage.setItem('usuario', entidad.user);
+        localStorage.setItem('entidad_id', entidad.id);
+        localStorage.setItem('tipoUsuario', tipo); // Guardar tipo de sesión
         navigate('/home');
       } else {
         setError('Credenciales incorrectas');
@@ -42,7 +51,25 @@ function Login() {
   return (
     <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
       <div className="border rounded p-4 shadow bg-light w-100" style={{ maxWidth: '400px' }}>
-        <h1 className="mb-4 text-primary text-center">Iniciar Sesión</h1>
+        <h1 className="mb-3 text-primary text-center">Iniciar Sesión</h1>
+
+        <div className="d-flex justify-content-center mb-3">
+          <ButtonGroup>
+            <Button
+              variant={tipo === 'usuario' ? 'success' : 'outline-success'}
+              onClick={() => handleTipoChange('usuario')}
+            >
+              Soy Usuario
+            </Button>
+            <Button
+              variant={tipo === 'empresa' ? 'success' : 'outline-success'}
+              onClick={() => handleTipoChange('empresa')}
+            >
+              Soy Empresa
+            </Button>
+          </ButtonGroup>
+        </div>
+
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3" controlId="formUser">
             <Form.Label>Usuario</Form.Label>

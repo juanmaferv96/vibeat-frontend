@@ -46,7 +46,7 @@ function Register() {
     setErroresEmpresa({ ...erroresEmpresa, [name]: '' });
   };
 
-  const validarFormulario = (formData, setErrores) => {
+  const validarFormulario = (formData) => {
     let errores = {};
     for (const key in formData) {
       if (!formData[key]) {
@@ -59,53 +59,61 @@ function Register() {
     return errores;
   };
 
+  const esNombreUsuarioUnico = async (username) => {
+    const nombre = username.toLowerCase();
+    try {
+      const [usuarios, empresas] = await Promise.all([
+        apiClient.get('http://localhost:8080/api/usuarios'),
+        apiClient.get('http://localhost:8080/api/empresas')
+      ]);
+
+      const existeEnUsuarios = usuarios.data.some(u => u.user?.toLowerCase() === nombre);
+      const existeEnEmpresas = empresas.data.some(e => e.user?.toLowerCase() === nombre);
+
+      return !(existeEnUsuarios || existeEnEmpresas);
+    } catch (error) {
+      console.error('Error validando nombre de usuario:', error);
+      return false;
+    }
+  };
+
   const handleUserSubmit = async (e) => {
     e.preventDefault();
-    const errores = validarFormulario(userFormData, setErroresUsuario);
+    const errores = validarFormulario(userFormData);
     setErroresUsuario(errores);
     if (Object.keys(errores).length > 0) return;
+
+    const disponible = await esNombreUsuarioUnico(userFormData.user);
+    if (!disponible) {
+      setErroresUsuario({ user: 'El usuario ya existe (sin distinción de mayúsculas y minúsculas)' });
+      return;
+    }
 
     try {
       await apiClient.post('http://localhost:8080/api/usuarios/nuevo', userFormData);
       navigate('/login');
     } catch (error) {
-      if (error.response && error.response.data) {
-        const errorMsg = error.response.data;
-        if (errorMsg.includes('password')) {
-          setErroresUsuario({ password: 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula y un número' });
-        } else if (errorMsg.includes('user')) {
-          setErroresUsuario({ general: 'El usuario ya existe (sin distinción de mayúsculas y minúsculas)' });
-        } else {
-          setErroresUsuario({ general: errorMsg });
-        }
-      } else {
-        setErroresUsuario({ general: 'Error al registrar usuario' });
-      }
+      setErroresUsuario({ general: 'Error al registrar usuario' });
     }
   };
 
   const handleEmpresaSubmit = async (e) => {
     e.preventDefault();
-    const errores = validarFormulario(empresaFormData, setErroresEmpresa);
+    const errores = validarFormulario(empresaFormData);
     setErroresEmpresa(errores);
     if (Object.keys(errores).length > 0) return;
+
+    const disponible = await esNombreUsuarioUnico(empresaFormData.user);
+    if (!disponible) {
+      setErroresEmpresa({ user: 'El usuario ya existe (sin distinción de mayúsculas y minúsculas)' });
+      return;
+    }
 
     try {
       await apiClient.post('http://localhost:8080/api/empresas/nuevo', empresaFormData);
       navigate('/login');
     } catch (error) {
-      if (error.response && error.response.data) {
-        const errorMsg = error.response.data;
-        if (errorMsg.includes('password')) {
-          setErroresEmpresa({ password: 'La contraseña debe tener al menos 6 caracteres, una mayúscula, una minúscula y un número' });
-        } else if (errorMsg.includes('user')) {
-          setErroresEmpresa({ general: 'El usuario ya existe (sin distinción de mayúsculas y minúsculas)' });
-        } else {
-          setErroresEmpresa({ general: errorMsg });
-        }
-      } else {
-        setErroresEmpresa({ general: 'Error al registrar empresa' });
-      }
+      setErroresEmpresa({ general: 'Error al registrar empresa' });
     }
   };
 
