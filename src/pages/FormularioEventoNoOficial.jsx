@@ -15,7 +15,15 @@ function FormularioEventoNoOficial() {
   const [fechaFin, setFechaFin] = useState(null);
   const [numeroTiposEntrada, setNumeroTiposEntrada] = useState(1);
   const [tiposEntrada, setTiposEntrada] = useState([
-    { nombre: '', precio: '', totalEntradas: '', numeroPremiadas: '', descripcion: '', tipoSorteo: 'NO' },
+    {
+      nombre: '',
+      precio: '',
+      totalEntradas: '',
+      numeroPremiadas: '',
+      descripcion: '',
+      tipoSorteo: 'NO',
+      nombrePremio: ''
+    }
   ]);
   const [numeroAtencionCliente, setNumeroAtencionCliente] = useState('');
   const [emailAtencionCliente, setEmailAtencionCliente] = useState('');
@@ -24,9 +32,16 @@ function FormularioEventoNoOficial() {
   const handleTipoEntradaChange = (index, field, value) => {
     const nuevasEntradas = [...tiposEntrada];
     nuevasEntradas[index][field] = value;
+
     if (field === 'numeroPremiadas') {
       nuevasEntradas[index]['tipoSorteo'] = parseInt(value) > 0 ? 'MANUAL' : 'NO';
     }
+
+    // Reset nombrePremio si ya no es AUTOMATICO
+    if (field === 'tipoSorteo' && value !== 'AUTOMATICO') {
+      nuevasEntradas[index]['nombrePremio'] = '';
+    }
+
     setTiposEntrada(nuevasEntradas);
   };
 
@@ -34,7 +49,15 @@ function FormularioEventoNoOficial() {
     const cantidad = parseInt(e.target.value);
     setNumeroTiposEntrada(cantidad);
     const nuevasEntradas = Array.from({ length: cantidad }, (_, i) =>
-      tiposEntrada[i] || { nombre: '', precio: '', totalEntradas: '', numeroPremiadas: '', descripcion: '', tipoSorteo: 'NO' }
+      tiposEntrada[i] || {
+        nombre: '',
+        precio: '',
+        totalEntradas: '',
+        numeroPremiadas: '',
+        descripcion: '',
+        tipoSorteo: 'NO',
+        nombrePremio: ''
+      }
     );
     setTiposEntrada(nuevasEntradas);
   };
@@ -85,7 +108,17 @@ function FormularioEventoNoOficial() {
         setError(`Las entradas premiadas no pueden ser mayores que el total de entradas en el tipo ${i + 1}.`);
         return;
       }
+      if (entrada.tipoSorteo === 'AUTOMATICO' && !entrada.nombrePremio.trim()) {
+        setError(`Debes indicar el nombre del premio para el tipo de entrada ${i + 1} con sorteo AUTOMATICO.`);
+        return;
+      }
     }
+
+    const tiposEntradaProcesados = tiposEntrada.map((entrada) => ({
+      ...entrada,
+      entradasDisponibles: parseInt(entrada.totalEntradas),
+      premiosEntregados: 0
+    }));
 
     const evento = {
       nombre,
@@ -96,13 +129,12 @@ function FormularioEventoNoOficial() {
       numeroTiposEntrada,
       numeroAtencionCliente,
       emailAtencionCliente,
-      tiposEntrada,
+      tiposEntrada: tiposEntradaProcesados,
       usuarioId: parseInt(localStorage.getItem('entidad_id'))
     };
 
     try {
-      await axios.post('/api/eventos-no-oficiales/nuevo', evento);
-      console.log('URL backend:', import.meta.env.VITE_BACKEND_URL);
+      await axios.post('/api/eventos-no-oficiales', evento);
       navigate('/mis-eventos');
     } catch (err) {
       if (err.response && err.response.data) {
@@ -195,11 +227,22 @@ function FormularioEventoNoOficial() {
                     disabled={parseInt(entrada.numeroPremiadas) === 0}
                   >
                     <option value="NO">NO</option>
-                    <option value="MANUAL">MANUAL</option>
-                    <option value="AUTOMATICO">AUTOMATICO</option>
+                    <option value="MANUAL">MANUAL - Se elegirá el premio en el momento del sorteo</option>
+                    <option value="AUTOMATICO">AUTOMATICO - El premio se elegirá ahora y será el mismo premio para todas las entradas de este tipo</option>
                   </Form.Select>
                 </Col>
               </Row>
+              {entrada.tipoSorteo === 'AUTOMATICO' && (
+                <Row className="mb-2">
+                  <Col>
+                    <Form.Control
+                      placeholder="Nombre del premio"
+                      value={entrada.nombrePremio}
+                      onChange={(e) => handleTipoEntradaChange(i, 'nombrePremio', e.target.value)}
+                    />
+                  </Col>
+                </Row>
+              )}
               <Form.Control as="textarea" rows={2} placeholder="Descripción" value={entrada.descripcion} onChange={(e) => handleTipoEntradaChange(i, 'descripcion', e.target.value)} />
             </div>
           ))}

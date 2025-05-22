@@ -8,6 +8,7 @@ import NavigationBar from './components/NavigationBar';
 import FormularioEventoOficial from './pages/FormularioEventoOficial';
 import FormularioEventoNoOficial from './pages/FormularioEventoNoOficial';
 import MisEventos from './pages/MisEventos';
+import InformacionEvento from './pages/InformacionEvento';
 import { Container } from 'react-bootstrap';
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
           <Route path="/formulario-evento-oficial" element={<FormularioEventoOficial />} />
           <Route path="/formulario-evento-no-oficial" element={<FormularioEventoNoOficial />} />
           <Route path="/mis-eventos" element={<MisEventos />} />
+          <Route path="/informacion-evento/:tipo/:id" element={<InformacionEvento />} />
         </Routes>
       </div>
     </div>

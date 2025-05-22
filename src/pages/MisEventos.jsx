@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Row, Col, Button, Collapse, ListGroup } from 'react-bootstrap';
+import { Container, Row, Col, Button, ListGroup } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 
 function MisEventos() {
@@ -16,10 +17,8 @@ function MisEventos() {
     const fetchEventos = async () => {
       try {
         const url = tipo === 'empresa'
-        ? '/api/eventos-oficiales'
-        : '/api/eventos-no-oficiales';
-
-        
+          ? '/api/eventos-oficiales'
+          : '/api/eventos-no-oficiales';
 
         const response = await axios.get(url);
         const filtrados = response.data.filter(evento =>
@@ -66,7 +65,15 @@ function MisEventos() {
             <ListGroup>
               {eventosVisibles.map((evento, index) => (
                 <ListGroup.Item key={index} className="d-flex flex-column align-items-start">
-                  <strong>{evento.nombre} - {evento.lugar} ({new Date(evento.fechaInicio).toLocaleDateString()} - {new Date(evento.fechaFin).toLocaleDateString()})</strong>
+                  <Link
+                    to={`/informacion-evento/${tipoUsuario === 'empresa' ? 'oficial' : 'no-oficial'}/${evento.id}`}
+                    className="fw-bold"
+                  >
+                    {evento.nombre}
+                  </Link>
+                  <span className="text-muted">
+                    {evento.lugar} &mdash; {new Date(evento.fechaInicio).toLocaleDateString()} - {new Date(evento.fechaFin).toLocaleDateString()}
+                  </span>
                   <small className="text-muted mt-1">{evento.descripcion}</small>
                 </ListGroup.Item>
               ))}
