@@ -9,6 +9,8 @@ import FormularioEventoOficial from './pages/FormularioEventoOficial';
 import FormularioEventoNoOficial from './pages/FormularioEventoNoOficial';
 import MisEventos from './pages/MisEventos';
 import InformacionEvento from './pages/InformacionEvento';
+import CompraEntradas from './pages/CompraEntradas';
+
 import { Container } from 'react-bootstrap';
 
 function App() {
@@ -33,7 +35,7 @@ function App() {
     <div className="app-container d-flex flex-column vh-100">
       {sesionActiva && <NavigationBar />}
       <div className="flex-grow-1">
-        <Routes>
+        <Routes location={location} key={location.pathname}>
           <Route path="/" element={<Welcome />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
@@ -42,6 +44,10 @@ function App() {
           <Route path="/formulario-evento-no-oficial" element={<FormularioEventoNoOficial />} />
           <Route path="/mis-eventos" element={<MisEventos />} />
           <Route path="/informacion-evento/:tipo/:id" element={<InformacionEvento />} />
+          <Route
+            path="/compra-entrada/:tipo/:eventoId/:nombreEntrada"
+            element={<CompraEntradas />}
+          />
         </Routes>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button, Card } from 'react-bootstrap';
 import { FaCog } from 'react-icons/fa';
 import axios from 'axios';
@@ -10,6 +10,7 @@ function InformacionEvento() {
   const usuario = localStorage.getItem('usuario');
   const entidadId = parseInt(localStorage.getItem('entidad_id'));
   const tipoUsuario = localStorage.getItem('tipoUsuario');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchEvento = async () => {
@@ -46,7 +47,8 @@ function InformacionEvento() {
       </div>
 
       <p className="text-muted mb-1">
-        Por: {evento.creador?.nombre || 'Desconocido'} ({evento.creador?.user || 'usuario'}) </p>
+        Por: {evento.creador?.nombre || 'Desconocido'} ({evento.creador?.user || 'usuario'})
+      </p>
       <p className="mb-1">
         <strong>Desde:</strong> {new Date(evento.fechaInicio).toLocaleString()} <br />
         <strong>Hasta:</strong> {new Date(evento.fechaFin).toLocaleString()}
@@ -80,7 +82,14 @@ function InformacionEvento() {
           <div className="d-flex justify-content-end gap-2">
             {(esCreador || esRRPP) && <Button variant="outline-info">Ver ganadores</Button>}
             {esCreador && <Button variant="outline-warning">Sortear</Button>}
-            <Button variant="success">Adquirir</Button>
+            <Button
+              variant="success"
+              onClick={() =>
+                navigate(`/compra-entrada/${tipo}/${evento.id}/${encodeURIComponent(entrada.nombre)}`)
+              }
+            >
+              Adquirir
+            </Button>
           </div>
         </Card>
       ))}

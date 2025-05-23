@@ -34,9 +34,11 @@ function Login() {
       const entidad = response.data.find((u) => u.user === user);
 
       if (entidad && entidad.password === password) {
+        const { password, ...entidadSinPassword } = entidad;
         localStorage.setItem('usuario', entidad.user);
         localStorage.setItem('entidad_id', entidad.id);
-        localStorage.setItem('tipoUsuario', tipo); // Guardar tipo de sesión
+        localStorage.setItem('tipoUsuario', tipo);
+        localStorage.setItem('entidad', JSON.stringify(entidadSinPassword));
         navigate('/home');
       } else {
         setError('Credenciales incorrectas');
