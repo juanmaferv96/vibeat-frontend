@@ -10,6 +10,7 @@ import FormularioEventoNoOficial from './pages/FormularioEventoNoOficial';
 import MisEventos from './pages/MisEventos';
 import InformacionEvento from './pages/InformacionEvento';
 import CompraEntradas from './pages/CompraEntradas';
+import ResumenCompraEntrada from './pages/ResumenCompraEntrada';
 
 import { Container } from 'react-bootstrap';
 
@@ -48,6 +49,7 @@ function App() {
             path="/compra-entrada/:tipo/:eventoId/:nombreEntrada"
             element={<CompraEntradas />}
           />
+                  <Route path="/resumen-compra" element={<ResumenCompraEntrada />} />
         </Routes>
       </div>
     </div>

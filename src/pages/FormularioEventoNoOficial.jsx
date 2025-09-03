@@ -117,7 +117,8 @@ function FormularioEventoNoOficial() {
     const tiposEntradaProcesados = tiposEntrada.map((entrada) => ({
       ...entrada,
       entradasDisponibles: parseInt(entrada.totalEntradas),
-      premiosEntregados: 0
+      // CAMBIO: premiosEntregados -> premiosDisponibles (inicializa con numeroPremiadas)
+      premiosDisponibles: parseInt(entrada.numeroPremiadas) || 0
     }));
 
     const evento = {
@@ -153,6 +154,7 @@ function FormularioEventoNoOficial() {
         {error && <Alert variant="danger">{error}</Alert>}
 
         <Form onSubmit={handleSubmit}>
+          {/* ... resto del formulario idéntico ... */}
           <Form.Group className="mb-3">
             <Form.Label>Nombre del Evento</Form.Label>
             <Form.Control value={nombre} onChange={(e) => setNombre(e.target.value)} />
@@ -203,7 +205,7 @@ function FormularioEventoNoOficial() {
 
           <Form.Group className="mt-4 mb-3">
             <Form.Label>Número de Tipos de Entrada</Form.Label>
-            <Form.Select value={numeroTiposEntrada} onChange={handleNumeroTiposChange}>
+            <Form.Select value={numeroTiposEntrada} onChange={e => setNumeroTiposEntrada(parseInt(e.target.value))}>
               {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
             </Form.Select>
           </Form.Group>
