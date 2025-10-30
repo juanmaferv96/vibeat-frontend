@@ -36,7 +36,7 @@ function ResumenCompraEntrada() {
   // username del usuario logueado (ajusta si tu app lo guarda con otra clave)
   const usuarioLogin =
     localStorage.getItem('username') ||
-    localStorage.getItem('user') ||
+    localStorage.getItem('usuario') ||
     localStorage.getItem('nombreUsuario') ||
     '';
 
