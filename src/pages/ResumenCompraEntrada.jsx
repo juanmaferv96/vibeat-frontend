@@ -57,7 +57,7 @@ function ResumenCompraEntrada() {
       <h1 className="text-center fw-bold mb-3">Compra realizada</h1>
       <p className="text-center mb-4">
         Enhorabuena, aquí tienes tu entrada. También podrás verla en la sección{' '}
-        <Link to="/mis-entradas" className="fw-bold">Mis Entradas</Link>.
+        <Link to="/mis-eventos" className="fw-bold">Mis Eventos</Link>.
       </p>
 
       <h2 className="text-center fw-bold mb-2">{nombreEvento}</h2>
