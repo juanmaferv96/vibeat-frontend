@@ -167,7 +167,7 @@ function CompraEntradas() {
 
       setShowConfirm(false);
       // Navega a la pantalla de resumen llevando la entrada y el evento
-      navigate('/resumen-compra', { state: { tipo, entrada: data, evento } });
+      navigate('/resumen-compra', { state: { tipo, entrada: data, evento, tipoEntrada } });
     } catch (err) {
       console.error(err);
       alert('No se pudo completar la compra. Inténtalo de nuevo.');
