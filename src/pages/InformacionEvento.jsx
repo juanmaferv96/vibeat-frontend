@@ -39,10 +39,26 @@ function InformacionEvento() {
   const esEscaneador = evento.escaneadores?.includes(usuario);
   const esRRPP = evento.rrpp?.includes(usuario);
 
+  // Nuevo: determinar si el evento ha finalizado
+  const finalizado = new Date(evento.fechaFin) < new Date();
+
   return (
     <Container className="py-5" style={{ backgroundColor: '#eaf2fb' }}>
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h2 className="text-primary">{evento.nombre}</h2>
+        <h2 className="text-primary d-flex align-items-center gap-2 mb-0">
+          {evento.nombre}
+          {finalizado && (
+            <span
+              style={{
+                color: '#dc3545',
+                fontWeight: 700,
+                fontSize: '0.5em'
+              }}
+            >
+              (Finalizado)
+            </span>
+          )}
+        </h2>
         {esCreador && <FaCog style={{ cursor: 'pointer' }} />}
       </div>
 
@@ -83,10 +99,14 @@ function InformacionEvento() {
             {(esCreador || esRRPP) && <Button variant="outline-info">Ver ganadores</Button>}
             {esCreador && <Button variant="outline-warning">Sortear</Button>}
             <Button
-              variant="success"
+              variant={finalizado ? 'secondary' : 'success'}
+              disabled={finalizado}
+              title={finalizado ? 'El evento ha finalizado. No es posible adquirir entradas.' : 'Adquirir entrada'}
               onClick={() =>
+                !finalizado &&
                 navigate(`/compra-entrada/${tipo}/${evento.id}/${encodeURIComponent(entrada.nombre)}`)
               }
+              style={finalizado ? { cursor: 'not-allowed' } : undefined}
             >
               Adquirir
             </Button>

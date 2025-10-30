@@ -498,7 +498,7 @@ function MisEventos() {
                               onClick={() => handleVerEntrada(en)}
                               title="Ver entrada"
                             >
-                              {`${en.tipoEntrada} - ${en.nombreComprador}, ${en.apellidosComprador}`}
+                              {`${en.tipoEntrada} - ${en.nombreComprador} ${en.apellidosComprador}`}
                             </ListGroup.Item>
                           ))}
                         </ListGroup>
@@ -548,7 +548,7 @@ function MisEventos() {
                                 onClick={() => handleVerEntrada(en)}
                                 title="Ver entrada"
                               >
-                                {`${en.tipoEntrada} - ${en.nombreComprador}, ${en.apellidosComprador}`}
+                                {`${en.tipoEntrada} - ${en.nombreComprador} ${en.apellidosComprador}`}
                               </ListGroup.Item>
                             ))}
                           </ListGroup>
