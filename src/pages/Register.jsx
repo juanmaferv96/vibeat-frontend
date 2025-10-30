@@ -130,7 +130,7 @@ function Register() {
     };
 
     try {
-      await apiClient.post('/api/usuarios/nuevo', payload);
+      await apiClient.post('/usuarios/nuevo', payload);
       navigate('/login');
     } catch (error) {
       setErroresUsuario({
