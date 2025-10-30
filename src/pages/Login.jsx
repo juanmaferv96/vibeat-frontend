@@ -1,22 +1,18 @@
+// src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import { Form, Button, Container, Alert, ButtonGroup } from 'react-bootstrap';
+import { Form, Button, Container, Alert } from 'react-bootstrap';
 
 function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ user: '', password: '' });
   const [error, setError] = useState('');
-  const [tipo, setTipo] = useState('usuario');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-  };
-
-  const handleTipoChange = (nuevoTipo) => {
-    setTipo(nuevoTipo);
-    setError('');
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -29,20 +25,31 @@ function Login() {
     }
 
     try {
-      const endpoint = tipo === 'usuario' ? 'usuarios' : 'empresas';
-      const response = await apiClient.get(`/${endpoint}`);
-      const entidad = response.data.find((u) => u.user === user);
+      // Solo trabajamos con usuarios (la parte Empresa desaparece)
+      const response = await apiClient.get('/usuarios');
+      // Búsqueda insensible a mayúsculas/minúsculas
+      const buscado = user.trim().toLowerCase();
+      const entidad = (response.data || []).find(
+        (u) => (u?.user || '').toLowerCase() === buscado
+      );
 
-      if (entidad && entidad.password === password) {
-        const { password, ...entidadSinPassword } = entidad;
-        localStorage.setItem('usuario', entidad.user);
-        localStorage.setItem('entidad_id', entidad.id);
-        localStorage.setItem('tipoUsuario', tipo);
-        localStorage.setItem('entidad', JSON.stringify(entidadSinPassword));
-        navigate('/home');
-      } else {
-        setError('Credenciales incorrectas');
+      if (!entidad) {
+        setError('El nombre de usuario no existe');
+        return;
       }
+
+      if (entidad.password !== password) {
+        setError('Contraseña incorrecta');
+        return;
+      }
+
+      // Login correcto
+      const { password: _omit, ...entidadSinPassword } = entidad;
+      localStorage.setItem('usuario', entidad.user);
+      localStorage.setItem('entidad_id', entidad.id);
+      localStorage.setItem('tipoUsuario', 'usuario'); // fijo a 'usuario'
+      localStorage.setItem('entidad', JSON.stringify(entidadSinPassword));
+      navigate('/home');
     } catch {
       setError('Error al conectar con el servidor');
     }
@@ -55,23 +62,6 @@ function Login() {
       <div className="border rounded p-4 shadow bg-light w-100" style={{ maxWidth: '400px' }}>
         <h1 className="mb-3 text-primary text-center">Iniciar Sesión</h1>
 
-        <div className="d-flex justify-content-center mb-3">
-          <ButtonGroup>
-            <Button
-              variant={tipo === 'usuario' ? 'success' : 'outline-success'}
-              onClick={() => handleTipoChange('usuario')}
-            >
-              Soy Usuario
-            </Button>
-            <Button
-              variant={tipo === 'empresa' ? 'success' : 'outline-success'}
-              onClick={() => handleTipoChange('empresa')}
-            >
-              Soy Empresa
-            </Button>
-          </ButtonGroup>
-        </div>
-
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3" controlId="formUser">
             <Form.Label>Usuario</Form.Label>
@@ -81,6 +71,7 @@ function Login() {
               placeholder="Introduce tu usuario"
               value={formData.user}
               onChange={handleChange}
+              autoComplete="username"
             />
           </Form.Group>
 
@@ -92,6 +83,7 @@ function Login() {
               placeholder="Introduce tu contraseña"
               value={formData.password}
               onChange={handleChange}
+              autoComplete="current-password"
             />
           </Form.Group>
 
