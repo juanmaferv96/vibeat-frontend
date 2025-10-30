@@ -1,107 +1,102 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import { Form, Button, Container, Alert, ButtonGroup } from 'react-bootstrap';
+import { Form, Button, Container, Alert } from 'react-bootstrap';
 
 function Login() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({ user: '', password: '' });
+
+  const [formData, setFormData] = useState({
+    user: '',
+    password: ''
+  });
+
   const [error, setError] = useState('');
-  const [tipo, setTipo] = useState('usuario');
+
+  const handleGoToWelcome = () => navigate('/');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleTipoChange = (nuevoTipo) => {
-    setTipo(nuevoTipo);
+    setFormData((prev) => ({ ...prev, [name]: value }));
     setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { user, password } = formData;
+    setError('');
 
-    if (!user || !password) {
-      setError('Debes completar ambos campos');
-      return;
-    }
+    const payload = {
+      user: formData.user,
+      password: formData.password
+    };
 
     try {
-      const endpoint = tipo === 'usuario' ? 'usuarios' : 'empresas';
-      const response = await apiClient.get(`/${endpoint}`);
-      const entidad = response.data.find((u) => u.user === user);
+      // Nuevo login unificado solo para usuarios
+      const response = await apiClient.post('/usuarios/login', payload);
 
-      if (entidad && entidad.password === password) {
-        const { password, ...entidadSinPassword } = entidad;
-        localStorage.setItem('usuario', entidad.user);
-        localStorage.setItem('entidad_id', entidad.id);
-        localStorage.setItem('tipoUsuario', tipo);
-        localStorage.setItem('entidad', JSON.stringify(entidadSinPassword));
-        navigate('/home');
-      } else {
-        setError('Credenciales incorrectas');
-      }
-    } catch {
-      setError('Error al conectar con el servidor');
+      // Si todo ok, podrías guardar datos de sesión según tu app
+      // p.ej., localStorage.setItem('usuario', JSON.stringify(response.data));
+      navigate('/home');
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data ||
+        'Error al iniciar sesión';
+      setError(msg);
     }
   };
 
-  const handleGoToWelcome = () => navigate('/');
-
   return (
-    <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
-      <div className="border rounded p-4 shadow bg-light w-100" style={{ maxWidth: '400px' }}>
-        <h1 className="mb-3 text-primary text-center">Iniciar Sesión</h1>
-
-        <div className="d-flex justify-content-center mb-3">
-          <ButtonGroup>
-            <Button
-              variant={tipo === 'usuario' ? 'success' : 'outline-success'}
-              onClick={() => handleTipoChange('usuario')}
-            >
-              Soy Usuario
-            </Button>
-            <Button
-              variant={tipo === 'empresa' ? 'success' : 'outline-success'}
-              onClick={() => handleTipoChange('empresa')}
-            >
-              Soy Empresa
-            </Button>
-          </ButtonGroup>
-        </div>
+    <Container
+      className="d-flex justify-content-center align-items-center"
+      style={{ minHeight: '100vh' }}
+    >
+      <div
+        className="border rounded p-4 shadow mx-auto"
+        style={{ maxWidth: '500px', width: '100%', backgroundColor: '#cfe2f3' }}
+      >
+        <h1 className="mb-4 text-primary text-center">Iniciar Sesión</h1>
 
         <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3" controlId="formUser">
+          {/* Usuario (case-insensitive en backend) */}
+          <div className="mb-3">
             <Form.Label>Usuario</Form.Label>
             <Form.Control
               type="text"
               name="user"
-              placeholder="Introduce tu usuario"
+              placeholder="Usuario"
               value={formData.user}
               onChange={handleChange}
             />
-          </Form.Group>
+          </div>
 
-          <Form.Group className="mb-3" controlId="formPassword">
+          {/* Contraseña */}
+          <div className="mb-3">
             <Form.Label>Contraseña</Form.Label>
             <Form.Control
               type="password"
               name="password"
-              placeholder="Introduce tu contraseña"
+              placeholder="Contraseña"
               value={formData.password}
               onChange={handleChange}
             />
-          </Form.Group>
+          </div>
 
-          {error && <Alert variant="danger" className="text-center">{error}</Alert>}
+          {error && (
+            <Alert variant="danger" className="mb-3 text-center">
+              {error}
+            </Alert>
+          )}
 
           <Button variant="primary" type="submit" className="w-100 mb-3">
             Iniciar Sesión
           </Button>
 
-          <Button variant="outline-secondary" className="w-100" onClick={handleGoToWelcome}>
+          <Button
+            variant="outline-secondary"
+            className="w-100"
+            onClick={handleGoToWelcome}
+          >
             Volver a la página principal
           </Button>
         </Form>
