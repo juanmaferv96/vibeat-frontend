@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { Container, Button, ListGroup, Alert, Spinner } from 'react-bootstrap';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Container, Button, ListGroup, Alert, Spinner, Form } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -7,14 +7,32 @@ function MisEventos() {
   const navigate = useNavigate();
   const usuarioId = parseInt(localStorage.getItem('entidad_id') || '0', 10);
 
-  // Estado: eventos propios, todas las entradas del usuario y mapa eventoId->evento
+  // Datos base
   const [eventosPropios, setEventosPropios] = useState([]);
   const [entradasUsuario, setEntradasUsuario] = useState([]);
   const [eventosMapa, setEventosMapa] = useState(new Map());
 
-  // UI
-  const [mostrarTerminados, setMostrarTerminados] = useState(false);
+  // UI toggles
+  const [mostrarTerminadosEventos, setMostrarTerminadosEventos] = useState(false);
+  const [mostrarTerminadosEntradas, setMostrarTerminadosEntradas] = useState(false);
   const [expandedEventoId, setExpandedEventoId] = useState(null);
+
+  // Búsqueda
+  const [showSearchEventos, setShowSearchEventos] = useState(false);
+  const [queryEventos, setQueryEventos] = useState('');
+  const [showSearchEntradas, setShowSearchEntradas] = useState(false);
+  const [queryEntradas, setQueryEntradas] = useState('');
+
+  // Refs de inputs para mantener foco
+  const eventosInputRef = useRef(null);
+  const entradasInputRef = useRef(null);
+
+  // Paginación (10 por página)
+  const PAGE_SIZE = 10;
+  const [pageEventosProx, setPageEventosProx] = useState(1);
+  const [pageEventosFin, setPageEventosFin] = useState(1);
+  const [pageEntradasProx, setPageEntradasProx] = useState(1);
+  const [pageEntradasFin, setPageEntradasFin] = useState(1);
 
   // Carga
   const [loading, setLoading] = useState(true);
@@ -29,7 +47,30 @@ function MisEventos() {
     return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
   };
 
-  const ordenarPorFechaInicio = (a, b) => new Date(a.fechaInicio) - new Date(b.fechaInicio);
+  const ordenarPorFechaInicio = (a, b) => {
+    const da = new Date(a?.fechaInicio || 0).getTime();
+    const db = new Date(b?.fechaInicio || 0).getTime();
+    return da - db;
+  };
+
+  const eventoTerminado = (e) => {
+    if (!e?.fechaFin) return false;
+    return new Date(e.fechaFin) < new Date();
+  };
+
+  const slicePage = (arr, page, size = PAGE_SIZE) => {
+    const total = arr.length;
+    const from = (page - 1) * size;
+    const to = Math.min(from + size, total);
+    return { items: arr.slice(from, to), from: from + 1, to, total };
+  };
+
+  const resetPagination = () => {
+    setPageEventosProx(1);
+    setPageEventosFin(1);
+    setPageEntradasProx(1);
+    setPageEntradasFin(1);
+  };
 
   // Efecto principal de carga (solo NO oficiales)
   useEffect(() => {
@@ -38,17 +79,14 @@ function MisEventos() {
       setLoading(true);
       setErrorLoad('');
       try {
-        // 1) Cargamos TODOS los eventos no oficiales y construimos un mapa id->evento
         const eventosResp = await axios.get('/api/eventos-no-oficiales');
         const todosEventos = Array.isArray(eventosResp.data) ? eventosResp.data : [];
         const mapa = new Map(todosEventos.map((e) => [e.id, e]));
 
-        // 2) Filtramos los eventos propios del usuario
         const propios = todosEventos
           .filter((e) => e.usuarioId === usuarioId)
           .sort(ordenarPorFechaInicio);
 
-        // 3) Cargamos TODAS las entradas NO oficiales y filtramos por usuario
         const entradasResp = await axios.get('/api/entradas-no-oficiales');
         const todasEntradas = Array.isArray(entradasResp.data) ? entradasResp.data : [];
         const mias = todasEntradas.filter((en) => en.usuarioId === usuarioId);
@@ -70,47 +108,156 @@ function MisEventos() {
     return () => { mounted = false; };
   }, [usuarioId]);
 
-  // Eventos visibles según "mostrarTerminados"
-  const eventosPropiosVisibles = useMemo(() => {
-    const ahora = new Date();
-    return eventosPropios.filter(
-      (e) => mostrarTerminados || new Date(e.fechaFin) >= ahora
-    );
-  }, [eventosPropios, mostrarTerminados]);
+  // Reajustar paginación al cambiar SOLO toggles o mostrar buscadores (no en cada tecla)
+  useEffect(() => {
+    resetPagination();
+  }, [mostrarTerminadosEventos, mostrarTerminadosEntradas, showSearchEventos, showSearchEntradas]);
 
-  // Agrupar entradas por eventoId y ordenarlas por fecha de inicio del evento
-  const gruposEntradas = useMemo(() => {
+  // Enfocar input al abrir lupa
+  useEffect(() => {
+    if (showSearchEventos && eventosInputRef.current) {
+      eventosInputRef.current.focus();
+    }
+  }, [showSearchEventos]);
+  useEffect(() => {
+    if (showSearchEntradas && entradasInputRef.current) {
+      entradasInputRef.current.focus();
+    }
+  }, [showSearchEntradas]);
+
+  // Handlers de cambio que conservan foco y selección del texto
+  const makeStableOnChange = (setter, inputRef) => (e) => {
+    const el = e.target;
+    const { selectionStart, selectionEnd } = el;
+    setter(el.value);
+    // Reenfoca y restaura selección tras el render
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        try {
+          inputRef.current.setSelectionRange(selectionStart, selectionEnd);
+        } catch (_) { /* en inputs vacíos puede lanzar, ignoramos */ }
+      }
+    });
+  };
+  const onChangeQueryEventos = makeStableOnChange(setQueryEventos, eventosInputRef);
+  const onChangeQueryEntradas = makeStableOnChange(setQueryEntradas, entradasInputRef);
+
+  // --- EVENTOS PROPIOS ---
+  const { eventosProximos, eventosFinalizados } = useMemo(() => {
+    const ahora = new Date();
+    const base = eventosPropios.slice().sort(ordenarPorFechaInicio);
+    const proximos = base.filter((e) => new Date(e.fechaFin || e.fechaInicio || 0) >= ahora);
+    const finalizados = base.filter((e) => new Date(e.fechaFin || 0) < ahora);
+    return { eventosProximos: proximos, eventosFinalizados: finalizados };
+  }, [eventosPropios]);
+
+  const hayEventosTerminados = eventosFinalizados.length > 0;
+
+  const buscarEventos = useCallback((lista, query) => {
+    if (!query) return lista;
+    const q = query.trim().toLowerCase();
+    return lista.filter((e) => (e?.nombre || '').toLowerCase().includes(q));
+  }, []);
+
+  const eventosSearchProx = useMemo(
+    () => buscarEventos(eventosProximos, queryEventos),
+    [eventosProximos, queryEventos, buscarEventos]
+  );
+  const eventosSearchFin = useMemo(
+    () => buscarEventos(eventosFinalizados, queryEventos),
+    [eventosFinalizados, queryEventos, buscarEventos]
+  );
+
+  // Si hay búsqueda, ignoramos toggle y mostramos ambas secciones (paginadas)
+  const eventosMostrarProx = showSearchEventos ? eventosSearchProx : eventosProximos;
+  const eventosMostrarFin = showSearchEventos ? eventosSearchFin : (mostrarTerminadosEventos ? eventosFinalizados : []);
+
+  const pagEventosProx = useMemo(
+    () => slicePage(eventosMostrarProx, pageEventosProx),
+    [eventosMostrarProx, pageEventosProx]
+  );
+  const pagEventosFin = useMemo(
+    () => slicePage(eventosMostrarFin, pageEventosFin),
+    [eventosMostrarFin, pageEventosFin]
+  );
+
+  // --- ENTRADAS (AGRUPADAS POR EVENTO) ---
+  const gruposEntradasOrdenados = useMemo(() => {
     const grupos = new Map();
     for (const en of entradasUsuario) {
       const eid = en.eventoId;
       if (!grupos.has(eid)) grupos.set(eid, []);
       grupos.get(eid).push(en);
     }
-    // Pasamos a array enriquecido con datos del evento
     const lista = Array.from(grupos.entries()).map(([eventoId, entradas]) => {
-      const ev = eventosMapa.get(eventoId) || { id: eventoId, nombre: 'Evento', fechaInicio: null };
+      const ev = eventosMapa.get(eventoId) || { id: eventoId, nombre: 'Evento', fechaInicio: null, fechaFin: null };
       return { evento: ev, entradas };
     });
-    // Orden por fechaInicio del evento
     return lista.sort((a, b) => ordenarPorFechaInicio(a.evento, b.evento));
   }, [entradasUsuario, eventosMapa]);
 
-  // Handler: abrir/cerrar grupo de entradas
+  const { gruposProximos, gruposFinalizados } = useMemo(() => {
+    const ahora = new Date();
+    const prox = [];
+    const fin = [];
+    for (const g of gruposEntradasOrdenados) {
+      const esFin = new Date(g.evento?.fechaFin || 0) < ahora;
+      (esFin ? fin : prox).push(g);
+    }
+    return { gruposProximos: prox, gruposFinalizados: fin };
+  }, [gruposEntradasOrdenados]);
+
+  const hayEntradasDeEventosTerminados = gruposFinalizados.length > 0;
+
+  const buscarGrupos = useCallback((lista, query) => {
+    if (!query) return lista;
+    const q = query.trim().toLowerCase();
+    return lista.filter((g) => (g?.evento?.nombre || '').toLowerCase().includes(q));
+  }, []);
+
+  const gruposSearchProx = useMemo(
+    () => buscarGrupos(gruposProximos, queryEntradas),
+    [gruposProximos, queryEntradas, buscarGrupos]
+  );
+  const gruposSearchFin = useMemo(
+    () => buscarGrupos(gruposFinalizados, queryEntradas),
+    [gruposFinalizados, queryEntradas, buscarGrupos]
+  );
+
+  const gruposMostrarProx = showSearchEntradas ? gruposSearchProx : gruposProximos;
+  const gruposMostrarFin = showSearchEntradas ? gruposSearchFin : (mostrarTerminadosEntradas ? gruposFinalizados : []);
+
+  const pagGruposProx = useMemo(
+    () => slicePage(gruposMostrarProx, pageEntradasProx),
+    [gruposMostrarProx, pageEntradasProx]
+  );
+  const pagGruposFin = useMemo(
+    () => slicePage(gruposMostrarFin, pageEntradasFin),
+    [gruposMostrarFin, pageEntradasFin]
+  );
+
+  // Si ocultamos terminados y el expandido es un terminado, replégalo
+  useEffect(() => {
+    if (!mostrarTerminadosEntradas && expandedEventoId != null) {
+      const ev = eventosMapa.get(expandedEventoId);
+      if (ev && eventoTerminado(ev)) {
+        setExpandedEventoId(null);
+      }
+    }
+  }, [mostrarTerminadosEntradas, expandedEventoId, eventosMapa]);
+
+  // Handlers
   const handleToggleGrupo = useCallback((eventoId) => {
     setExpandedEventoId((prev) => (prev === eventoId ? null : eventoId));
   }, []);
 
-  // Handler: ir al resumen de una entrada concreta
   const handleVerEntrada = useCallback(async (entrada) => {
     try {
-      // Cargamos el evento completo para disponer de tiposEntrada actualizados
       const { data } = await axios.get(`/api/eventos-no-oficiales/${entrada.eventoId}`);
-      // Compatible con estructuras {evento, usuario} o evento directo
       const eventoObj = data?.evento || data;
       const usuarioCreador = data?.usuario || eventoObj?.creador || {};
       const evento = { ...eventoObj, creador: usuarioCreador };
-
-      // Buscar el objeto tipoEntrada por su nombre
       const tipos = evento?.tiposEntrada || evento?.tipos_entrada || [];
       const tipoEntradaObj = tipos.find((t) => t?.nombre === entrada.tipoEntrada) || null;
 
@@ -145,86 +292,280 @@ function MisEventos() {
     );
   }
 
-  const hayTerminados = eventosPropios.some((e) => new Date(e.fechaFin) < new Date());
+  // Componente simple de paginación
+  const PaginationControls = ({ page, setPage, total, size = PAGE_SIZE }) => {
+    if (total <= size) return null;
+    const totalPages = Math.ceil(total / size);
+    const prev = () => setPage((p) => Math.max(1, p - 1));
+    const next = () => setPage((p) => Math.min(totalPages, p + 1));
+    return (
+      <div className="d-flex align-items-center gap-2 mt-2">
+        <Button variant="outline-secondary" size="sm" onMouseDown={(e) => e.preventDefault()} onClick={prev} disabled={page <= 1}>
+          ‹ Anterior
+        </Button>
+        <span className="small text-muted">Página {page} de {totalPages}</span>
+        <Button variant="outline-secondary" size="sm" onMouseDown={(e) => e.preventDefault()} onClick={next} disabled={page >= totalPages}>
+          Siguiente ›
+        </Button>
+      </div>
+    );
+  };
+
+  // Encabezado con lupa e input debajo (input siempre montado)
+  const HeaderWithSearch = ({
+    title, showSearch, setShowSearch, query, onChangeQuery, placeholder, inputRef
+  }) => (
+    <div className="mb-2">
+      <div className="d-flex align-items-center justify-content-between">
+        <h4 className="mb-0">{title}</h4>
+        <Button
+          variant={showSearch ? 'primary' : 'outline-primary'}
+          size="sm"
+          onClick={() => {
+            setShowSearch((v) => !v);
+            setTimeout(() => {
+              if (!showSearch && inputRef?.current) inputRef.current.focus();
+            }, 0);
+          }}
+          title="Buscar"
+        >
+          🔍
+        </Button>
+      </div>
+      <div className={showSearch ? 'mt-2' : 'mt-2 d-none'}>
+        <Form.Control
+          ref={inputRef}
+          placeholder={placeholder}
+          value={query}
+          onChange={onChangeQuery}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <Container className="py-5" style={{ backgroundColor: '#eaf2fb' }}>
       <h2 className="text-primary text-center mb-4">Mis eventos</h2>
 
-      {/* Bloque: Eventos propios (NO oficiales) */}
+      {/* --- EVENTOS PROPIOS --- */}
       <div className="mb-5">
-        <h4>Eventos propios</h4>
+        <HeaderWithSearch
+          title="Eventos propios"
+          showSearch={showSearchEventos}
+          setShowSearch={setShowSearchEventos}
+          query={queryEventos}
+          onChangeQuery={onChangeQueryEventos}
+          placeholder="Buscar eventos por nombre…"
+          inputRef={eventosInputRef}
+        />
+
         {eventosPropios.length === 0 ? (
           <p className="text-muted">Aún no has creado ningún evento</p>
         ) : (
           <>
-            {hayTerminados && (
+            {!showSearchEventos && hayEventosTerminados && (
               <Button
                 variant="outline-primary"
                 size="sm"
                 className="mb-3"
-                onClick={() => setMostrarTerminados((v) => !v)}
+                onClick={() => setMostrarTerminadosEventos((v) => !v)}
               >
-                {mostrarTerminados ? 'Ocultar eventos terminados' : 'Mostrar eventos terminados'}
+                {mostrarTerminadosEventos ? 'Ocultar eventos terminados' : 'Mostrar eventos terminados'}
               </Button>
             )}
 
-            <ListGroup>
-              {eventosPropiosVisibles.map((evento) => (
-                <ListGroup.Item key={evento.id} className="d-flex flex-column align-items-start">
-                  <Link
-                    to={`/informacion-evento/no-oficial/${evento.id}`}
-                    className="fw-bold"
-                  >
-                    {evento.nombre}
-                  </Link>
-                  <span className="text-muted">
-                    {evento.lugar} &mdash; {new Date(evento.fechaInicio).toLocaleDateString()} - {new Date(evento.fechaFin).toLocaleDateString()}
-                  </span>
-                  <small className="text-muted mt-1">{evento.descripcion}</small>
-                </ListGroup.Item>
-              ))}
-            </ListGroup>
+            {/* Próximos */}
+            <div className="mb-3">
+              <h6 className="text-uppercase text-muted mb-2">Próximos</h6>
+              {pagEventosProx.total === 0 ? (
+                <p className="text-muted">
+                  No hay eventos próximos{showSearchEventos && queryEventos ? ' que coincidan con la búsqueda' : ''}.
+                </p>
+              ) : (
+                <>
+                  <ListGroup>
+                    {pagEventosProx.items.map((evento) => (
+                      <ListGroup.Item key={evento.id} className="d-flex flex-column align-items-start">
+                        <Link to={`/informacion-evento/no-oficial/${evento.id}`} className="fw-bold">
+                          {evento.nombre}
+                        </Link>
+                        <span className="text-muted">
+                          {evento.lugar} &mdash; {fmtFechaCorta(evento.fechaInicio)} - {fmtFechaCorta(evento.fechaFin)}
+                        </span>
+                        {evento.descripcion && <small className="text-muted mt-1">{evento.descripcion}</small>}
+                      </ListGroup.Item>
+                    ))}
+                  </ListGroup>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <small className="text-muted mt-2">
+                      Mostrando {pagEventosProx.from}-{pagEventosProx.to} de {pagEventosProx.total}
+                    </small>
+                    <PaginationControls page={pageEventosProx} setPage={setPageEventosProx} total={pagEventosProx.total} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Finalizados */}
+            {(showSearchEventos || mostrarTerminadosEventos) && (
+              <div>
+                <h6 className="text-uppercase text-muted mb-2">Finalizados</h6>
+                {pagEventosFin.total === 0 ? (
+                  <p className="text-muted">
+                    No hay eventos finalizados{showSearchEventos && queryEventos ? ' que coincidan con la búsqueda' : ''}.
+                  </p>
+                ) : (
+                  <>
+                    <ListGroup>
+                      {pagEventosFin.items.map((evento) => (
+                        <ListGroup.Item key={evento.id} className="d-flex flex-column align-items-start">
+                          <Link to={`/informacion-evento/no-oficial/${evento.id}`} className="fw-bold">
+                            {evento.nombre}
+                          </Link>
+                          <span className="text-muted">
+                            {evento.lugar} &mdash; {fmtFechaCorta(evento.fechaInicio)} - {fmtFechaCorta(evento.fechaFin)}
+                          </span>
+                          {evento.descripcion && <small className="text-muted mt-1">{evento.descripcion}</small>}
+                        </ListGroup.Item>
+                      ))}
+                    </ListGroup>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <small className="text-muted mt-2">
+                        Mostrando {pagEventosFin.from}-{pagEventosFin.to} de {pagEventosFin.total}
+                      </small>
+                      <PaginationControls page={pageEventosFin} setPage={setPageEventosFin} total={pagEventosFin.total} />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {/* Bloque: Mis entradas (NO oficiales) */}
+      {/* --- MIS ENTRADAS --- */}
       <div>
-        <h4>Mis entradas</h4>
-        {gruposEntradas.length === 0 ? (
-          <p className="text-muted">Aún no has adquirido ninguna entrada</p>
-        ) : (
-          <ListGroup>
-            {gruposEntradas.map(({ evento, entradas }) => (
-              <ListGroup.Item key={evento.id} className="p-0">
-                <button
-                  className="w-100 text-start border-0 bg-transparent p-3 fw-bold"
-                  onClick={() => handleToggleGrupo(evento.id)}
-                  title="Ver entradas de este evento"
-                >
-                  {`${evento.nombre} - ${fmtFechaCorta(evento.fechaInicio)}`}
-                </button>
+        <HeaderWithSearch
+          title="Mis entradas"
+          showSearch={showSearchEntradas}
+          setShowSearch={setShowSearchEntradas}
+          query={queryEntradas}
+          onChangeQuery={onChangeQueryEntradas}
+          placeholder="Buscar por nombre de evento…"
+          inputRef={entradasInputRef}
+        />
 
-                {expandedEventoId === evento.id && (
-                  <div className="px-3 pb-3">
-                    <ListGroup>
-                      {entradas.map((en) => (
-                        <ListGroup.Item
-                          key={en.id}
-                          action
-                          onClick={() => handleVerEntrada(en)}
-                          title="Ver entrada"
-                        >
-                          {`${en.tipoEntrada} - ${en.nombreComprador}, ${en.apellidosComprador}`}
-                        </ListGroup.Item>
-                      ))}
-                    </ListGroup>
-                  </div>
-                )}
-              </ListGroup.Item>
-            ))}
-          </ListGroup>
+        {hayEntradasDeEventosTerminados && !showSearchEntradas && (
+          <Button
+            variant="outline-primary"
+            size="sm"
+            className="mb-3"
+            onClick={() => setMostrarTerminadosEntradas((v) => !v)}
+          >
+            {mostrarTerminadosEntradas
+              ? 'Ocultar entradas de eventos terminados'
+              : 'Mostrar entradas de eventos terminados'}
+          </Button>
+        )}
+
+        {/* Próximos */}
+        <div className="mb-3">
+          <h6 className="text-uppercase text-muted mb-2">Próximos</h6>
+          {pagGruposProx.total === 0 ? (
+            <p className="text-muted">
+              No hay entradas para eventos próximos{showSearchEntradas && queryEntradas ? ' que coincidan con la búsqueda' : ''}.
+            </p>
+          ) : (
+            <>
+              <ListGroup>
+                {pagGruposProx.items.map(({ evento, entradas }) => (
+                  <ListGroup.Item key={evento.id} className="p-0">
+                    <button
+                      className="w-100 text-start border-0 bg-transparent p-3 fw-bold"
+                      onClick={() => handleToggleGrupo(evento.id)}
+                      title="Ver entradas de este evento"
+                    >
+                      {`${evento.nombre} - ${fmtFechaCorta(evento.fechaInicio)}`}
+                    </button>
+
+                    {expandedEventoId === evento.id && (
+                      <div className="px-3 pb-3">
+                        <ListGroup>
+                          {entradas.map((en) => (
+                            <ListGroup.Item
+                              key={en.id}
+                              action
+                              onClick={() => handleVerEntrada(en)}
+                              title="Ver entrada"
+                            >
+                              {`${en.tipoEntrada} - ${en.nombreComprador}, ${en.apellidosComprador}`}
+                            </ListGroup.Item>
+                          ))}
+                        </ListGroup>
+                      </div>
+                    )}
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+              <div className="d-flex justify-content-between align-items-center">
+                <small className="text-muted mt-2">
+                  Mostrando {pagGruposProx.from}-{pagGruposProx.to} de {pagGruposProx.total}
+                </small>
+                <PaginationControls page={pageEntradasProx} setPage={setPageEntradasProx} total={pagGruposProx.total} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Finalizados */}
+        {(showSearchEntradas || mostrarTerminadosEntradas) && (
+          <div>
+            <h6 className="text-uppercase text-muted mb-2">Finalizados</h6>
+            {pagGruposFin.total === 0 ? (
+              <p className="text-muted">
+                No hay entradas para eventos finalizados{showSearchEntradas && queryEntradas ? ' que coincidan con la búsqueda' : ''}.
+              </p>
+            ) : (
+              <>
+                <ListGroup>
+                  {pagGruposFin.items.map(({ evento, entradas }) => (
+                    <ListGroup.Item key={evento.id} className="p-0">
+                      <button
+                        className="w-100 text-start border-0 bg-transparent p-3 fw-bold"
+                        onClick={() => handleToggleGrupo(evento.id)}
+                        title="Ver entradas de este evento"
+                      >
+                        {`${evento.nombre} - ${fmtFechaCorta(evento.fechaInicio)}`}
+                      </button>
+
+                      {expandedEventoId === evento.id && (
+                        <div className="px-3 pb-3">
+                          <ListGroup>
+                            {entradas.map((en) => (
+                              <ListGroup.Item
+                                key={en.id}
+                                action
+                                onClick={() => handleVerEntrada(en)}
+                                title="Ver entrada"
+                              >
+                                {`${en.tipoEntrada} - ${en.nombreComprador}, ${en.apellidosComprador}`}
+                              </ListGroup.Item>
+                            ))}
+                          </ListGroup>
+                        </div>
+                      )}
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-muted mt-2">
+                    Mostrando {pagGruposFin.from}-{pagGruposFin.to} de {pagGruposFin.total}
+                  </small>
+                  <PaginationControls page={pageEntradasFin} setPage={setPageEntradasFin} total={pagGruposFin.total} />
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
     </Container>
