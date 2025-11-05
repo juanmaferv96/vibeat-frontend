@@ -257,7 +257,7 @@ function InformacionEvento() {
       <p className="mb-1"><strong>Email contacto:</strong> {evento.emailAtencionCliente}</p>
       <p className="mb-4"><strong>Teléfono contacto:</strong> {evento.numeroAtencionCliente}</p>
 
-      <div className="d-flex justify-content-between align-items-center">
+      <div className="d-flex justify-content-between align-items-center p-1">
         <h4 className="fw-bold mb-0">Entradas</h4>
 
         {(esCreador || esEscaneador) && (

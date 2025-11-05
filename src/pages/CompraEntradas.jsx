@@ -198,138 +198,168 @@ function CompraEntradas() {
   }
 
   return (
-    <Container className="py-5" style={{ backgroundColor: '#eaf2fb' }}>
-      <h2 className="mb-1 text-primary fw-bold">{evento.nombre}</h2>
-      <p className="text-muted mb-3">Por: {evento.creador?.user || evento.creador?.nombre || '—'}</p>
+    <>
+      {/* Estilos SOLO visuales para el modal y textos largos */}
+      <style>{`
+        /* Ancho del modal por breakpoints grandes */
+        .modal-confirm-wide .modal-dialog {
+          width: 100%;
+          max-width: 900px;
+        }
+        @media (min-width: 1400px) {
+          .modal-confirm-wide .modal-dialog {
+            max-width: 1100px;
+          }
+        }
+        /* Asegurar que los textos (emails, DNIs largos) se partan correctamente */
+        .modal-confirm-wide .modal-body,
+        .modal-confirm-wide .modal-body p,
+        .modal-confirm-wide .modal-body span {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+      `}</style>
 
-      {tipoEntrada && (
-        <>
-          <h4 className="mb-1">Entrada: {tipoEntrada.nombre}</h4>
-          <p className="text-muted">{tipoEntrada.descripcion}</p>
-        </>
-      )}
+      <Container className="py-5" style={{ backgroundColor: '#eaf2fb' }}>
+        <h2 className="mb-1 text-primary fw-bold">{evento.nombre}</h2>
+        <p className="text-muted mb-3">Por: {evento.creador?.user || evento.creador?.nombre || '—'}</p>
 
-      <h5 className="fw-bold text-decoration-underline mt-4 mb-3">Información del comprador</h5>
-      <Form>
-        <Row className="mb-3">
-          <Col md={6}>
-            <Form.Label>Nombre del comprador</Form.Label>
-            <Form.Control
-              value={comprador.nombre}
-              onChange={(e) => setComprador({ ...comprador, nombre: e.target.value })}
-              onBlur={() => isFormValid()}
-            />
-            {renderError('nombre')}
-          </Col>
-          <Col md={6}>
-            <Form.Label>Apellidos del comprador</Form.Label>
-            <Form.Control
-              value={comprador.apellidos}
-              onChange={(e) => setComprador({ ...comprador, apellidos: e.target.value })}
-              onBlur={() => isFormValid()}
-            />
-            {renderError('apellidos')}
-          </Col>
-        </Row>
+        {tipoEntrada && (
+          <>
+            <h4 className="mb-1">Entrada: {tipoEntrada.nombre}</h4>
+            <p className="text-muted">{tipoEntrada.descripcion}</p>
+          </>
+        )}
 
-        <Row className="mb-3">
-          <Col md={6}>
-            <Form.Label>Fecha de nacimiento</Form.Label>
-            <div>
-              <DatePicker
-                selected={comprador.fechaNacimiento}
-                onChange={(date) => setComprador({ ...comprador, fechaNacimiento: date })}
-                dateFormat="yyyy-MM-dd"
-                className="form-control"
-                showMonthDropdown
-                showYearDropdown
-                dropdownMode="select"
-                scrollableYearDropdown
-                yearDropdownItemNumber={120}
-                maxDate={new Date()}
-                minDate={new Date(1900, 0, 1)}
-                placeholderText="Selecciona la fecha"
-              />
-            </div>
-            {renderError('fechaNacimiento')}
-          </Col>
-          <Col md={6}>
-            <Form.Label>DNI</Form.Label>
-            <Form.Control
-              value={comprador.dni}
-              onChange={(e) => setComprador({ ...comprador, dni: e.target.value })}
-              onBlur={() => isFormValid()}
-            />
-            {renderError('dni')}
-          </Col>
-        </Row>
-
-        <Row className="mb-3">
-          <Col md={6}>
-            <Form.Label>Email</Form.Label>
-            <Form.Control
-              type="email"
-              value={comprador.email}
-              onChange={(e) => setComprador({ ...comprador, email: e.target.value })}
-              onBlur={() => isFormValid()}
-            />
-            {renderError('email')}
-          </Col>
-          <Col md={6}>
-            <Form.Label>Teléfono</Form.Label>
-            <Form.Control
-              value={comprador.telefono}
-              onChange={(e) => setComprador({ ...comprador, telefono: e.target.value })}
-              onBlur={() => isFormValid()}
-            />
-            {renderError('telefono')}
-          </Col>
-        </Row>
-
-        <div className="text-end">
-          <p className="fw-bold">Precio: {tipoEntrada?.precio ?? '—'} €</p>
-          <Button
-            variant="success"
-            onClick={handleComprarClick}
-            disabled={!allFilled}
-            title={!allFilled ? 'Completa todos los campos para continuar' : 'Comprar'}
-          >
-            Comprar
-          </Button>
-        </div>
-      </Form>
-
-      {/* Modal de confirmación */}
-      <Modal show={showConfirm} onHide={() => setShowConfirm(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Verifica que los datos son correctos antes de adquirir tu entrada</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row>
+        <h5 className="fw-bold text-decoration-underline mt-4 mb-3">Información del comprador</h5>
+        <Form>
+          <Row className="mb-3">
             <Col md={6}>
-              <p><strong>Nombre:</strong> {comprador.nombre}</p>
-              <p><strong>Apellidos:</strong> {comprador.apellidos}</p>
-              <p><strong>Fecha de nacimiento:</strong> {comprador.fechaNacimiento ? comprador.fechaNacimiento.toLocaleDateString() : '-'}</p>
+              <Form.Label>Nombre del comprador</Form.Label>
+              <Form.Control
+                value={comprador.nombre}
+                onChange={(e) => setComprador({ ...comprador, nombre: e.target.value })}
+                onBlur={() => isFormValid()}
+              />
+              {renderError('nombre')}
             </Col>
             <Col md={6}>
-              <p><strong>DNI:</strong> {comprador.dni}</p>
-              <p><strong>Email:</strong> {comprador.email}</p>
-              <p><strong>Teléfono:</strong> {comprador.telefono}</p>
+              <Form.Label>Apellidos del comprador</Form.Label>
+              <Form.Control
+                value={comprador.apellidos}
+                onChange={(e) => setComprador({ ...comprador, apellidos: e.target.value })}
+                onBlur={() => isFormValid()}
+              />
+              {renderError('apellidos')}
             </Col>
           </Row>
-          <p className="fw-bold mt-2" style={{ color: '#dc3545' }}>
-            Recuerda que las entradas adquiridas habrá que pagarlas en la entrada del evento en caso de ser necesario.
-          </p>
-          <p className="mt-2"><strong>Precio:</strong> {tipoEntrada?.precio ?? '—'} €</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="danger" onClick={() => setShowConfirm(false)} disabled={submitting}>Cancelar</Button>
-          <Button variant="success" onClick={handleConfirmAdquirir} disabled={submitting}>
-            {submitting ? 'Adquiriendo…' : 'Adquirir'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </Container>
+
+          <Row className="mb-3">
+            <Col md={6}>
+              <Form.Label>Fecha de nacimiento</Form.Label>
+              <div>
+                <DatePicker
+                  selected={comprador.fechaNacimiento}
+                  onChange={(date) => setComprador({ ...comprador, fechaNacimiento: date })}
+                  dateFormat="yyyy-MM-dd"
+                  className="form-control"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
+                  scrollableYearDropdown
+                  yearDropdownItemNumber={120}
+                  maxDate={new Date()}
+                  minDate={new Date(1900, 0, 1)}
+                  placeholderText="Selecciona la fecha"
+                />
+              </div>
+              {renderError('fechaNacimiento')}
+            </Col>
+            <Col md={6}>
+              <Form.Label>DNI</Form.Label>
+              <Form.Control
+                value={comprador.dni}
+                onChange={(e) => setComprador({ ...comprador, dni: e.target.value })}
+                onBlur={() => isFormValid()}
+              />
+              {renderError('dni')}
+            </Col>
+          </Row>
+
+          <Row className="mb-3">
+            <Col md={6}>
+              <Form.Label>Email</Form.Label>
+              <Form.Control
+                type="email"
+                value={comprador.email}
+                onChange={(e) => setComprador({ ...comprador, email: e.target.value })}
+                onBlur={() => isFormValid()}
+              />
+              {renderError('email')}
+            </Col>
+            <Col md={6}>
+              <Form.Label>Teléfono</Form.Label>
+              <Form.Control
+                value={comprador.telefono}
+                onChange={(e) => setComprador({ ...comprador, telefono: e.target.value })}
+                onBlur={() => isFormValid()}
+              />
+              {renderError('telefono')}
+            </Col>
+          </Row>
+
+          <div className="text-end">
+            <p className="fw-bold">Precio: {tipoEntrada?.precio ?? '—'} €</p>
+            <Button
+              variant="success"
+              onClick={handleComprarClick}
+              disabled={!allFilled}
+              title={!allFilled ? 'Completa todos los campos para continuar' : 'Comprar'}
+            >
+              Comprar
+            </Button>
+          </div>
+        </Form>
+
+        {/* Modal de confirmación: ahora ancho y totalmente responsive */}
+        <Modal
+          show={showConfirm}
+          onHide={() => setShowConfirm(false)}
+          centered
+          scrollable
+          size="lg"
+          dialogClassName="modal-confirm-wide"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Verifica que los datos son correctos antes de adquirir tu entrada</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="text-break">
+            <Row xs={1} md={2} className="g-3">
+              <Col>
+                <p><strong>Nombre:</strong> {comprador.nombre}</p>
+                <p><strong>Apellidos:</strong> {comprador.apellidos}</p>
+                <p><strong>Fecha de nacimiento:</strong> {comprador.fechaNacimiento ? comprador.fechaNacimiento.toLocaleDateString() : '-'}</p>
+              </Col>
+              <Col>
+                <p><strong>DNI:</strong> {comprador.dni}</p>
+                <p><strong>Email:</strong> {comprador.email}</p>
+                <p><strong>Teléfono:</strong> {comprador.telefono}</p>
+              </Col>
+            </Row>
+            <p className="fw-bold mt-2" style={{ color: '#dc3545' }}>
+              Recuerda que las entradas adquiridas habrá que pagarlas en la entrada del evento en caso de ser necesario.
+            </p>
+            <p className="mt-2"><strong>Precio:</strong> {tipoEntrada?.precio ?? '—'} €</p>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="danger" onClick={() => setShowConfirm(false)} disabled={submitting}>Cancelar</Button>
+            <Button variant="success" onClick={handleConfirmAdquirir} disabled={submitting}>
+              {submitting ? 'Adquiriendo…' : 'Adquirir'}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+      </Container>
+    </>
   );
 }
 
