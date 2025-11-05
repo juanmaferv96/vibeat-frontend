@@ -10,6 +10,8 @@ export default defineConfig({
   server: {
     host: true,   // 0.0.0.0 (disponible en tu LAN)
     port: 5173,
+    //https: httpsConfigFromEnv(),
+    allowedHosts: ['.trycloudflare.com', '.ngrok.io', 'localhost', '127.0.0.1'],
     proxy: {
       '/api': {
         target: DEV_API_TARGET,
