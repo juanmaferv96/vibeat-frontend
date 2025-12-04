@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button, Card, Alert } from 'react-bootstrap';
 import { FaCog } from 'react-icons/fa';
-import axios from 'axios';
+import apiClient from '../api/apiClient';
+//import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 function InformacionEvento() {
@@ -76,7 +77,7 @@ function InformacionEvento() {
 
   const validateQr = async (codigoQr) => {
     try {
-      const { data, status } = await axios.post('/api/entradas-no-oficiales/scan', {
+      const { data, status } = await apiClient.post('/entradas-no-oficiales/scan', {
         eventoId: eventoId,
         codigoQr: String(codigoQr).trim(),
       });
@@ -210,8 +211,8 @@ function InformacionEvento() {
   useEffect(() => {
     const fetchEvento = async () => {
       try {
-        const endpoint = `/api/eventos-no-oficiales/${eventoId}`;
-        const { data } = await axios.get(endpoint);
+        const endpoint = `/eventos-no-oficiales/${eventoId}`;
+        const { data } = await apiClient.get(endpoint);
         setEvento({
           ...data.evento,
           creador: data.usuario

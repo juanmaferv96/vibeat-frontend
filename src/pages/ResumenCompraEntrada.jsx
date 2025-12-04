@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Container, Button, Alert } from 'react-bootstrap';
 import QRCode from 'react-qr-code';
+import apiClient from '../api/apiClient';
 
 function ResumenCompraEntrada() {
   const { state } = useLocation();

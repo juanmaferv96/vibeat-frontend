@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Button, Container, Form, Dropdown } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { FaUserCircle } from 'react-icons/fa';
-import axios from 'axios';
+//import axios from 'axios';
+import apiClient from '../api/apiClient';
 
 function NavigationBar() {
   const navigate = useNavigate();
@@ -20,8 +21,8 @@ function NavigationBar() {
       }
       try {
         const [oficiales, noOficiales] = await Promise.all([
-          axios.get('/api/eventos-oficiales'),
-          axios.get('/api/eventos-no-oficiales')
+          apiClient.get('/eventos-oficiales'),
+          apiClient.get('/eventos-no-oficiales')
         ]);
 
         const filtradosOficiales = oficiales.data.filter(evento =>

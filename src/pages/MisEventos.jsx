@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Container, Button, ListGroup, Alert, Spinner, Form } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../api/apiClient';
+//import axios from 'axios';
 
 function MisEventos() {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ function MisEventos() {
       setLoading(true);
       setErrorLoad('');
       try {
-        const eventosResp = await axios.get('/api/eventos-no-oficiales');
+        const eventosResp = await apiClient.get('/eventos-no-oficiales');
         const todosEventos = Array.isArray(eventosResp.data) ? eventosResp.data : [];
         const mapa = new Map(todosEventos.map((e) => [e.id, e]));
 
@@ -87,7 +88,7 @@ function MisEventos() {
           .filter((e) => e.usuarioId === usuarioId)
           .sort(ordenarPorFechaInicio);
 
-        const entradasResp = await axios.get('/api/entradas-no-oficiales');
+        const entradasResp = await apiClient.get('/entradas-no-oficiales');
         const todasEntradas = Array.isArray(entradasResp.data) ? entradasResp.data : [];
         const mias = todasEntradas.filter((en) => en.usuarioId === usuarioId);
 
@@ -254,7 +255,7 @@ function MisEventos() {
 
   const handleVerEntrada = useCallback(async (entrada) => {
     try {
-      const { data } = await axios.get(`/api/eventos-no-oficiales/${entrada.eventoId}`);
+      const { data } = await apiClient.get(`/eventos-no-oficiales/${entrada.eventoId}`);
       const eventoObj = data?.evento || data;
       const usuarioCreador = data?.usuario || eventoObj?.creador || {};
       const evento = { ...eventoObj, creador: usuarioCreador };

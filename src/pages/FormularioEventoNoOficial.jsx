@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Container, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import axios from 'axios';
+//import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
 function FormularioEventoNoOficial() {
@@ -135,7 +135,7 @@ function FormularioEventoNoOficial() {
     };
 
     try {
-      await axios.post('/api/eventos-no-oficiales', evento);
+      await apiClient.post('/eventos-no-oficiales', evento);
       navigate('/mis-eventos');
     } catch (err) {
       if (err.response && err.response.data) {
