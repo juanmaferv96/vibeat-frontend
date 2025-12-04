@@ -3,6 +3,7 @@ import { Container, Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 //import axios from 'axios';
+import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 
 function FormularioEventoNoOficial() {
