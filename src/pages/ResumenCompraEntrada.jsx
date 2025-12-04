@@ -2,7 +2,8 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Container, Button, Alert } from 'react-bootstrap';
 import QRCode from 'react-qr-code';
-import apiClient from '../api/apiClient';
+// IMPORTANTE: Importamos también 'buildApiUrl' para generar la URL correcta del PDF
+import apiClient, { buildApiUrl } from '../api/apiClient';
 
 function ResumenCompraEntrada() {
   const { state } = useLocation();
@@ -41,9 +42,13 @@ function ResumenCompraEntrada() {
     localStorage.getItem('nombreUsuario') ||
     '';
 
+  // --- CAMBIO CLAVE AQUÍ ---
+  // Usamos buildApiUrl para que en PROD ponga "https://backend..." 
+  // y en LOCAL ponga "/api/..."
+  // Nota: Quitamos el "/api" explícito del string porque buildApiUrl ya lo añade.
   const base = (tipo === 'oficial')
-    ? `/api/entradas-oficiales/${entrada.id}/pdf`
-    : `/api/entradas-no-oficiales/${entrada.id}/pdf`;
+    ? buildApiUrl(`/entradas-oficiales/${entrada.id}/pdf`)
+    : buildApiUrl(`/entradas-no-oficiales/${entrada.id}/pdf`);
 
   const pdfUrl = React.useMemo(() => {
     const params = new URLSearchParams();
@@ -78,6 +83,7 @@ function ResumenCompraEntrada() {
       <p className="text-center fs-6"><strong>Referencia: </strong>{entrada.referencia}</p>
 
       <div className="text-center mt-3">
+        {/* Al ser una URL absoluta en prod, esto abrirá directo el PDF del backend */}
         <Button variant="primary" onClick={() => window.open(pdfUrl, '_blank')}>Descarga tu entrada</Button>
       </div>
 
