@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Button, Card, Alert } from 'react-bootstrap';
 import { FaCog } from 'react-icons/fa';
 import apiClient from '../api/apiClient';
-//import axios from 'axios';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 
 function InformacionEvento() {
@@ -13,10 +12,10 @@ function InformacionEvento() {
 
   const [evento, setEvento] = useState(null);
 
-  // Contexto usuario (sin empresas)
+  // Contexto usuario
   const usuario = localStorage.getItem('usuario');
   const entidadId = parseInt(localStorage.getItem('entidad_id'));
-  const tipoUsuario = localStorage.getItem('tipoUsuario'); // 'usuario'
+  const tipoUsuario = localStorage.getItem('tipoUsuario');
 
   // ===== Escáner (cámara) =====
   const [isScanning, setIsScanning] = useState(false);
@@ -27,15 +26,15 @@ function InformacionEvento() {
   const streamRef = useRef(null);
 
   // Banners de validación
-  const [banner, setBanner] = useState(null); // { type: 'success'|'warn'|'error', text: string }
+  const [banner, setBanner] = useState(null);
   const bannerTimeoutRef = useRef(null);
 
-  // >>> Control de procesamiento / bloqueo ventana de escaneo
-  const processingRef = useRef(false); // bloquea todo el flujo durante 5s
-  const cooldownRef = useRef(false);   // redundante, pero mantenemos por claridad
+  // Control de procesamiento
+  const processingRef = useRef(false);
+  const cooldownRef = useRef(false);
   const scanWindowTimerRef = useRef(null);
 
-  const SUCCESS_COOLDOWN_MS = 5000; // 5s: bloquear nueva lectura tras mostrar banner
+  const SUCCESS_COOLDOWN_MS = 5000;
 
   const isSecure =
     typeof window !== 'undefined' &&
@@ -63,7 +62,6 @@ function InformacionEvento() {
     bannerTimeoutRef.current = setTimeout(() => setBanner(null), ms);
   };
 
-  // >>> Inicia una “ventana” de escaneo única (lock inmediato 5s)
   const beginScanWindow = (ms = SUCCESS_COOLDOWN_MS) => {
     cooldownRef.current = true;
     processingRef.current = true;
@@ -98,21 +96,15 @@ function InformacionEvento() {
   };
 
   const onZXCallback = (result, err) => {
-    // >>> si estamos en ventana bloqueada, ignorar TODO (evita vibración y segundas lecturas)
     if (processingRef.current || cooldownRef.current) return;
 
     if (result && typeof result.getText === 'function') {
       const text = String(result.getText()).trim();
       if (text.length > 0) {
-        // >>> Bloqueamos inmediatamente por 5s ANTES de llamar al backend
         beginScanWindow(SUCCESS_COOLDOWN_MS);
-
-        // Vibración solo una vez por ventana de escaneo
         if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
           navigator.vibrate(60);
         }
-
-        // Validamos contra backend (el banner se mostrará y durará exactamente 5s)
         validateQr(text);
       }
     }
@@ -189,7 +181,6 @@ function InformacionEvento() {
         clearTimeout(bannerTimeoutRef.current);
         bannerTimeoutRef.current = null;
       }
-      // >>> limpiar bloqueo y timers
       if (scanWindowTimerRef.current) {
         clearTimeout(scanWindowTimerRef.current);
         scanWindowTimerRef.current = null;
@@ -204,7 +195,6 @@ function InformacionEvento() {
 
   useEffect(() => {
     return () => stopScanner();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ===== Datos del evento (solo no-oficial) =====
@@ -230,14 +220,14 @@ function InformacionEvento() {
   const esCreador = tipoUsuario === 'usuario' && evento?.usuarioId === entidadId;
   const esEscaneador = evento?.escaneadores?.includes(usuario);
   const esRRPP = evento?.rrpp?.includes(usuario);
-  const finalizado = new Date(evento.fechaFin) < new Date();
+  const eventoFinalizado = new Date(evento.fechaFin) < new Date();
 
   return (
     <Container className="py-5" style={{ backgroundColor: '#eaf2fb' }}>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <h2 className="text-primary d-flex align-items-center gap-2 mb-0">
           {evento.nombre}
-          {finalizado && (
+          {eventoFinalizado && (
             <span style={{ color: '#dc3545', fontWeight: 700, fontSize: '0.5em' }}>
               (Finalizado)
             </span>
@@ -298,7 +288,6 @@ function InformacionEvento() {
             playsInline
           />
 
-          {/* Overlay guía */}
           <div
             style={{
               position: 'absolute',
@@ -321,7 +310,6 @@ function InformacionEvento() {
             />
           </div>
 
-          {/* Banner de validación */}
           {banner && (
             <div
               style={{
@@ -361,7 +349,35 @@ function InformacionEvento() {
       )}
 
       {evento.tiposEntrada.map((entrada, index) => {
-        const finalizado = new Date(evento.fechaFin) < new Date();
+        const stock = entrada.entradasDisponibles;
+        const agotadas = stock === 0;
+
+        // Lógica de visualización del mensaje
+        let mensajeStock = null;
+        if (!eventoFinalizado) {
+          if (agotadas) {
+            mensajeStock = (
+              <div className="fw-bold text-danger mb-1" style={{ fontSize: '0.85rem' }}>
+                Entradas agotadas
+              </div>
+            );
+          } else if (stock <= 10) {
+            mensajeStock = (
+              <div className="fw-bold text-danger mb-1" style={{ fontSize: '0.85rem' }}>
+                ¡Solo quedan {stock} entradas!
+              </div>
+            );
+          } else if (stock > 10 && stock <= 20) {
+            mensajeStock = (
+              <div className="fw-bold text-warning mb-1" style={{ fontSize: '0.85rem', color: '#fd7e14' }}>
+                ¡Quedan pocas entradas!
+              </div>
+            );
+          }
+        }
+
+        const botonDeshabilitado = eventoFinalizado || agotadas;
+
         return (
           <Card key={index} className="mb-3 p-3" style={{ backgroundColor: '#ffffff' }}>
             <Row className="align-items-center mb-2">
@@ -377,22 +393,36 @@ function InformacionEvento() {
                 <span className="fw-bold">{entrada.precio} €</span>
               </Col>
             </Row>
+            
             <p>{entrada.descripcion}</p>
-            <div className="d-flex justify-content-end gap-2">
-              {(esCreador || esRRPP) && <Button variant="outline-info">Ver ganadores</Button>}
-              {esCreador && <Button variant="outline-warning">Sortear</Button>}
-              <Button
-                variant={finalizado ? 'secondary' : 'success'}
-                disabled={finalizado}
-                title={finalizado ? 'El evento ha finalizado. No es posible adquirir entradas.' : 'Adquirir entrada'}
-                onClick={() =>
-                  !finalizado &&
-                  navigate(`/compra-entrada/no-oficial/${evento.id}/${encodeURIComponent(entrada.nombre)}`)
-                }
-                style={finalizado ? { cursor: 'not-allowed' } : undefined}
-              >
-                Adquirir
-              </Button>
+
+            {/* SECCIÓN INFERIOR: AVISO STOCK + BOTONES */}
+            <div className="d-flex flex-column align-items-end">
+              {/* Aquí mostramos el aviso encima de los botones */}
+              {mensajeStock}
+
+              <div className="d-flex justify-content-end gap-2">
+                {(esCreador || esRRPP) && <Button variant="outline-info">Ver ganadores</Button>}
+                {esCreador && <Button variant="outline-warning">Sortear</Button>}
+                <Button
+                  variant={botonDeshabilitado ? 'secondary' : 'success'}
+                  disabled={botonDeshabilitado}
+                  title={
+                    eventoFinalizado 
+                      ? 'El evento ha finalizado.' 
+                      : agotadas 
+                        ? 'Entradas agotadas' 
+                        : 'Adquirir entrada'
+                  }
+                  onClick={() =>
+                    !botonDeshabilitado &&
+                    navigate(`/compra-entrada/no-oficial/${evento.id}/${encodeURIComponent(entrada.nombre)}`)
+                  }
+                  style={botonDeshabilitado ? { cursor: 'not-allowed' } : undefined}
+                >
+                  Adquirir
+                </Button>
+              </div>
             </div>
           </Card>
         );

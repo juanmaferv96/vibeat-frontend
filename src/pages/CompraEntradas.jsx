@@ -138,7 +138,11 @@ function CompraEntradas() {
   const allFilled = comprador.nombre && comprador.apellidos && comprador.fechaNacimiento
     && comprador.dni && comprador.email && comprador.telefono;
 
+  // Lógica de entradas agotadas
+  const entradasAgotadas = tipoEntrada && (tipoEntrada.entradasDisponibles <= 0);
+
   const handleComprarClick = () => {
+    if (entradasAgotadas) return;
     if (!isFormValid()) return;
     setShowConfirm(true);
   };
@@ -170,7 +174,12 @@ function CompraEntradas() {
       navigate('/resumen-compra', { state: { tipo, entrada: data, evento, tipoEntrada } });
     } catch (err) {
       console.error(err);
-      alert('No se pudo completar la compra. Inténtalo de nuevo.');
+      if (err.response && err.response.status === 409) {
+          alert('¡Vaya! Las entradas se acaban de agotar mientras realizabas la operación.');
+          window.location.reload(); // Recargar para actualizar el estado
+      } else {
+          alert('No se pudo completar la compra. Inténtalo de nuevo.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -228,6 +237,14 @@ function CompraEntradas() {
           <>
             <h4 className="mb-1">Entrada: {tipoEntrada.nombre}</h4>
             <p className="text-muted">{tipoEntrada.descripcion}</p>
+            {/* Aviso visual si quedan pocas (opcional) o agotadas */}
+            {entradasAgotadas ? (
+                 <Alert variant="danger" className="d-inline-block py-1 px-3 fw-bold">
+                    Agotadas
+                 </Alert>
+            ) : (
+                 <p className="text-success small fw-bold">Disponibles: {tipoEntrada.entradasDisponibles}</p>
+            )}
           </>
         )}
 
@@ -240,6 +257,7 @@ function CompraEntradas() {
                 value={comprador.nombre}
                 onChange={(e) => setComprador({ ...comprador, nombre: e.target.value })}
                 onBlur={() => isFormValid()}
+                disabled={entradasAgotadas}
               />
               {renderError('nombre')}
             </Col>
@@ -249,6 +267,7 @@ function CompraEntradas() {
                 value={comprador.apellidos}
                 onChange={(e) => setComprador({ ...comprador, apellidos: e.target.value })}
                 onBlur={() => isFormValid()}
+                disabled={entradasAgotadas}
               />
               {renderError('apellidos')}
             </Col>
@@ -271,6 +290,7 @@ function CompraEntradas() {
                   maxDate={new Date()}
                   minDate={new Date(1900, 0, 1)}
                   placeholderText="Selecciona la fecha"
+                  disabled={entradasAgotadas}
                 />
               </div>
               {renderError('fechaNacimiento')}
@@ -281,6 +301,7 @@ function CompraEntradas() {
                 value={comprador.dni}
                 onChange={(e) => setComprador({ ...comprador, dni: e.target.value })}
                 onBlur={() => isFormValid()}
+                disabled={entradasAgotadas}
               />
               {renderError('dni')}
             </Col>
@@ -294,6 +315,7 @@ function CompraEntradas() {
                 value={comprador.email}
                 onChange={(e) => setComprador({ ...comprador, email: e.target.value })}
                 onBlur={() => isFormValid()}
+                disabled={entradasAgotadas}
               />
               {renderError('email')}
             </Col>
@@ -303,6 +325,7 @@ function CompraEntradas() {
                 value={comprador.telefono}
                 onChange={(e) => setComprador({ ...comprador, telefono: e.target.value })}
                 onBlur={() => isFormValid()}
+                disabled={entradasAgotadas}
               />
               {renderError('telefono')}
             </Col>
@@ -311,12 +334,16 @@ function CompraEntradas() {
           <div className="text-end">
             <p className="fw-bold">Precio: {tipoEntrada?.precio ?? '—'} €</p>
             <Button
-              variant="success"
+              variant={entradasAgotadas ? "secondary" : "success"}
               onClick={handleComprarClick}
-              disabled={!allFilled}
-              title={!allFilled ? 'Completa todos los campos para continuar' : 'Comprar'}
+              disabled={!allFilled || entradasAgotadas}
+              title={
+                entradasAgotadas 
+                  ? 'Entradas agotadas' 
+                  : (!allFilled ? 'Completa todos los campos para continuar' : 'Comprar')
+              }
             >
-              Comprar
+              {entradasAgotadas ? 'Agotadas' : 'Comprar'}
             </Button>
           </div>
         </Form>

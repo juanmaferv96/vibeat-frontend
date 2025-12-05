@@ -9,35 +9,53 @@ function NavigationBar() {
   const navigate = useNavigate();
   const sesionActiva = localStorage.getItem('usuario');
   const [busqueda, setBusqueda] = useState('');
-  const [oficialesEncontrados, setOficialesEncontrados] = useState([]);
   const [noOficialesEncontrados, setNoOficialesEncontrados] = useState([]);
+
+  // Función auxiliar para determinar el estado del evento
+  const getEstadoEvento = (inicio, fin) => {
+    const ahora = new Date();
+    const fechaInicio = new Date(inicio);
+    const fechaFin = new Date(fin);
+
+    if (ahora > fechaFin) return 'FINALIZADO';
+    if (ahora >= fechaInicio && ahora <= fechaFin) return 'EN_CURSO';
+    return 'FUTURO';
+  };
 
   useEffect(() => {
     const buscarEventos = async () => {
       if (busqueda.trim() === '') {
-        setOficialesEncontrados([]);
         setNoOficialesEncontrados([]);
         return;
       }
       try {
-        const [oficiales, noOficiales] = await Promise.all([
-          apiClient.get('/eventos-oficiales'),
-          apiClient.get('/eventos-no-oficiales')
-        ]);
-
-        const filtradosOficiales = oficiales.data.filter(evento =>
-          evento.nombre.toLowerCase().includes(busqueda.toLowerCase())
-        );
-        const filtradosNoOficiales = noOficiales.data.filter(evento =>
+        const response = await apiClient.get('/eventos-no-oficiales');
+        
+        // 1. Filtramos por nombre
+        let filtrados = response.data.filter(evento =>
           evento.nombre.toLowerCase().includes(busqueda.toLowerCase())
         );
 
-        setOficialesEncontrados(filtradosOficiales);
-        setNoOficialesEncontrados(filtradosNoOficiales);
+        // 2. Ordenamos: En curso -> Futuros -> Finalizados
+        filtrados.sort((a, b) => {
+          const estadoA = getEstadoEvento(a.fechaInicio, a.fechaFin);
+          const estadoB = getEstadoEvento(b.fechaInicio, b.fechaFin);
+
+          const prioridades = {
+            'EN_CURSO': 1,
+            'FUTURO': 2,
+            'FINALIZADO': 3
+          };
+
+          return prioridades[estadoA] - prioridades[estadoB];
+        });
+
+        setNoOficialesEncontrados(filtrados);
       } catch (error) {
         console.error('Error al buscar eventos:', error);
       }
     };
+
     buscarEventos();
   }, [busqueda]);
 
@@ -46,6 +64,16 @@ function NavigationBar() {
     localStorage.removeItem('entidad_id');
     localStorage.removeItem('tipoUsuario');
     navigate('/');
+  };
+
+  const formatearFecha = (fechaString) => {
+    if (!fechaString) return '';
+    const fecha = new Date(fechaString);
+    return fecha.toLocaleDateString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   if (!sesionActiva) return null;
@@ -64,54 +92,51 @@ function NavigationBar() {
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
-          {(busqueda && (oficialesEncontrados.length > 0 || noOficialesEncontrados.length > 0)) && (
+          
+          {(busqueda && noOficialesEncontrados.length > 0) && (
             <div className="position-absolute bg-white border rounded w-100 mt-1 z-3" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              {oficialesEncontrados.length > 0 && (
-                <>
+              {noOficialesEncontrados.map((evento, idx) => {
+                const estado = getEstadoEvento(evento.fechaInicio, evento.fechaFin);
+                
+                // Determinar estilos y texto según estado
+                let backgroundColor = 'white'; // Por defecto (FUTURO)
+                let textoDerecha = null;
+
+                if (estado === 'FINALIZADO') {
+                  backgroundColor = '#ffe6e6'; // Rojo suave
+                  textoDerecha = <span className="fw-bold text-danger">Finalizado</span>;
+                } else if (estado === 'EN_CURSO') {
+                  backgroundColor = '#fff3cd'; // Naranja/Amarillo suave
+                  textoDerecha = <span className="fw-bold text-warning-emphasis">Evento en curso</span>;
+                }
+
+                return (
                   <div
-                    className="fw-bold px-3 py-2 border-bottom"
-                    style={{ backgroundColor: '#e6f0ff', color: '#003366' }}
+                    key={`no-${idx}`}
+                    className="px-3 py-2 border-bottom d-flex justify-content-between align-items-center"
+                    style={{ 
+                      cursor: 'pointer', 
+                      backgroundColor: backgroundColor 
+                    }}
+                    onClick={() => {
+                      navigate(`/informacion-evento/no-oficial/${evento.id}`);
+                      setBusqueda('');
+                    }}
                   >
-                    Eventos oficiales
-                  </div>
-                  {oficialesEncontrados.map((evento, idx) => (
-                    <div
-                      key={`of-${idx}`}
-                      className="px-3 py-2 border-bottom"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        navigate(`/informacion-evento/oficial/${evento.id}`);
-                        setBusqueda('');
-                      }}
-                    >
-                      {evento.nombre}
+                    {/* Parte izquierda: Nombre - Fecha */}
+                    <div>
+                      <span className="fw-bold">{evento.nombre}</span> - {formatearFecha(evento.fechaInicio)}
                     </div>
-                  ))}
-                </>
-              )}
-              {noOficialesEncontrados.length > 0 && (
-                <>
-                  <div
-                    className="fw-bold px-3 py-2 border-bottom"
-                    style={{ backgroundColor: '#e6f0ff', color: '#003366' }}
-                  >
-                    Eventos no oficiales
+                    
+                    {/* Parte derecha: Estado (si corresponde) */}
+                    {textoDerecha && (
+                      <div className="ms-3">
+                        {textoDerecha}
+                      </div>
+                    )}
                   </div>
-                  {noOficialesEncontrados.map((evento, idx) => (
-                    <div
-                      key={`no-${idx}`}
-                      className="px-3 py-2 border-bottom"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        navigate(`/informacion-evento/no-oficial/${evento.id}`);
-                        setBusqueda('');
-                      }}
-                    >
-                      {evento.nombre}
-                    </div>
-                  ))}
-                </>
-              )}
+                );
+              })}
             </div>
           )}
         </Form>
