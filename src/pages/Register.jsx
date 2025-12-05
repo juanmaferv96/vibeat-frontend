@@ -1,7 +1,9 @@
+// src/pages/Register.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import { Form, Button, Container, Alert } from 'react-bootstrap';
+// Importamos los componentes de Bootstrap necesarios
+import { Form, Button, Container, Alert, Spinner } from 'react-bootstrap';
 
 function Register() {
   const navigate = useNavigate();
@@ -19,11 +21,13 @@ function Register() {
   });
 
   const [erroresUsuario, setErroresUsuario] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleUserChange = (e) => {
     const { name, value } = e.target;
     setUserFormData((prev) => ({ ...prev, [name]: value }));
-    setErroresUsuario((prev) => ({ ...prev, [name]: '' })); // limpiar error de ese campo
+    // Limpiamos el error específico del campo al escribir
+    setErroresUsuario((prev) => ({ ...prev, [name]: '' }));
   };
 
   const validarRequeridosYPassword = (formData) => {
@@ -62,34 +66,31 @@ function Register() {
   const comprobarUnicidadContraBD = async (formData) => {
     const errores = {};
     try {
-      // Solo usuarios (estamos eliminando la parte de empresas)
       const { data: usuarios } = await apiClient.get('/usuarios');
 
       // USER (case-insensitive)
       const userLower = formData.user.toLowerCase();
       if (usuarios.some((u) => u.user?.toLowerCase() === userLower)) {
-        errores.user =
-          'El nombre de usuario ya existe (no se distinguen mayúsculas y minúsculas)';
+        errores.user = 'El nombre de usuario ya existe';
       }
 
-      // DNI (case-insensitive) -> se guardará en MAYÚSCULAS
+      // DNI (case-insensitive)
       const dniUpper = formData.dni.toUpperCase();
       if (usuarios.some((u) => (u.dni || '').toUpperCase() === dniUpper)) {
         errores.dni = 'Ya existe un usuario con ese DNI';
       }
 
-      // EMAIL (case-insensitive) -> se guardará en minúsculas
+      // EMAIL (case-insensitive)
       const emailLower = formData.email.toLowerCase();
       if (usuarios.some((u) => (u.email || '').toLowerCase() === emailLower)) {
         errores.email = 'Ya existe un usuario con ese email';
       }
 
-      // TELÉFONO (exacto)
+      // TELÉFONO
       if (usuarios.some((u) => String(u.telefono || '') === String(formData.telefono))) {
         errores.telefono = 'Ya existe un usuario con ese número de teléfono';
       }
     } catch (e) {
-      // Si hay error consultando, mostramos error general
       errores.general =
         'No se pudo verificar la disponibilidad. Inténtalo de nuevo en unos segundos.';
     }
@@ -99,44 +100,54 @@ function Register() {
   const handleUserSubmit = async (e) => {
     e.preventDefault();
 
-    // 1) Validaciones de formato / requeridos
+    // 1. Validaciones locales (Rápidas - No activamos spinner aquí)
     const erroresBasicos = validarRequeridosYPassword(userFormData);
 
-    // Si ya hay errores básicos, de momento no hacemos la llamada a BD
     if (Object.keys(erroresBasicos).length > 0) {
       setErroresUsuario(erroresBasicos);
       return;
     }
 
-    // 2) Unicidad contra BD
-    const erroresUnicidad = await comprobarUnicidadContraBD(userFormData);
-
-    // Combinar ambos (si hubiera)
-    const errores = { ...erroresBasicos, ...erroresUnicidad };
-
-    if (Object.keys(errores).length > 0) {
-      setErroresUsuario(errores);
-      return;
-    }
-
-    // 3) Preparar payload con transformaciones:
-    // - DNI siempre en MAYÚSCULAS
-    // - Email siempre en minúsculas
-    const payload = {
-      ...userFormData,
-      dni: userFormData.dni.toUpperCase(),
-      email: userFormData.email.toLowerCase()
-      // 'user' se guarda tal y como lo escribió el usuario
-    };
+    // 2. Activamos el loader
+    setIsLoading(true);
+    setErroresUsuario({}); // Limpiamos errores previos
 
     try {
+      // 3. Ejecutamos la validación de BD en paralelo con un temporizador mínimo
+      // Esto asegura que el spinner se vea AL MENOS 0.8 segundos, dando feedback visual claro
+      const [erroresUnicidad] = await Promise.all([
+        comprobarUnicidadContraBD(userFormData),
+        new Promise((resolve) => setTimeout(resolve, 800)) // Retardo UX
+      ]);
+
+      const errores = { ...erroresBasicos, ...erroresUnicidad };
+
+      // Si hay errores de unicidad (DNI repetido, etc.), paramos aquí
+      if (Object.keys(errores).length > 0) {
+        setErroresUsuario(errores);
+        setIsLoading(false); // Apagamos loader para que el usuario corrija
+        return;
+      }
+
+      // 4. Si todo está limpio, registramos
+      const payload = {
+        ...userFormData,
+        dni: userFormData.dni.toUpperCase(),
+        email: userFormData.email.toLowerCase()
+      };
+
       await apiClient.post('/usuarios/nuevo', payload);
+      
+      // 5. Éxito: Navegamos
+      // NOTA: No hacemos setIsLoading(false) aquí para evitar parpadeos antes del cambio de página
       navigate('/login');
+
     } catch (error) {
+      // Error grave (servidor caído 500, etc)
       setErroresUsuario({
-        general:
-          error?.response?.data?.message || 'Error al registrar usuario'
+        general: error?.response?.data?.message || 'Error al registrar usuario'
       });
+      setIsLoading(false); // Apagamos loader para mostrar el error
     }
   };
 
@@ -156,7 +167,6 @@ function Register() {
       >
         <h1 className="mb-4 text-primary text-center">Registro</h1>
 
-        {/* Solo formulario de USUARIOS (oculto el botón de empresa y el selector de tipo) */}
         <Form onSubmit={handleUserSubmit}>
           {/* Nombre */}
           <div className="mb-3">
@@ -168,6 +178,7 @@ function Register() {
               value={userFormData.nombre}
               onChange={handleUserChange}
               className={getInputClass('nombre')}
+              disabled={isLoading}
             />
             {erroresUsuario.nombre && (
               <div className="text-danger mt-1">{erroresUsuario.nombre}</div>
@@ -184,6 +195,7 @@ function Register() {
               value={userFormData.apellidos}
               onChange={handleUserChange}
               className={getInputClass('apellidos')}
+              disabled={isLoading}
             />
             {erroresUsuario.apellidos && (
               <div className="text-danger mt-1">{erroresUsuario.apellidos}</div>
@@ -200,6 +212,7 @@ function Register() {
               value={userFormData.dni}
               onChange={handleUserChange}
               className={getInputClass('dni')}
+              disabled={isLoading}
             />
             {erroresUsuario.dni && (
               <div className="text-danger mt-1">{erroresUsuario.dni}</div>
@@ -216,6 +229,7 @@ function Register() {
               value={userFormData.fechaNacimiento}
               onChange={handleUserChange}
               className={getInputClass('fechaNacimiento')}
+              disabled={isLoading}
             />
             {erroresUsuario.fechaNacimiento && (
               <div className="text-danger mt-1">
@@ -234,6 +248,7 @@ function Register() {
               value={userFormData.direccion}
               onChange={handleUserChange}
               className={getInputClass('direccion')}
+              disabled={isLoading}
             />
             {erroresUsuario.direccion && (
               <div className="text-danger mt-1">{erroresUsuario.direccion}</div>
@@ -250,6 +265,7 @@ function Register() {
               value={userFormData.telefono}
               onChange={handleUserChange}
               className={getInputClass('telefono')}
+              disabled={isLoading}
             />
             {erroresUsuario.telefono && (
               <div className="text-danger mt-1">{erroresUsuario.telefono}</div>
@@ -266,6 +282,7 @@ function Register() {
               value={userFormData.email}
               onChange={handleUserChange}
               className={getInputClass('email')}
+              disabled={isLoading}
             />
             {erroresUsuario.email && (
               <div className="text-danger mt-1">{erroresUsuario.email}</div>
@@ -282,6 +299,7 @@ function Register() {
               value={userFormData.user}
               onChange={handleUserChange}
               className={getInputClass('user')}
+              disabled={isLoading}
             />
             {erroresUsuario.user && (
               <div className="text-danger mt-1">{erroresUsuario.user}</div>
@@ -298,25 +316,51 @@ function Register() {
               value={userFormData.password}
               onChange={handleUserChange}
               className={getInputClass('password')}
+              disabled={isLoading}
             />
             {erroresUsuario.password && (
               <div className="text-danger mt-1">{erroresUsuario.password}</div>
             )}
           </div>
 
-          {/* Errores generales acumulables */}
+          {/* Alerta de errores generales */}
           {erroresUsuario.general && (
             <Alert variant="danger" className="mt-3 text-center">
               {erroresUsuario.general}
             </Alert>
           )}
 
-          <Button type="submit" className="w-100 mt-3" variant="primary">
-            Registrar Usuario
+          {/* Botón de Submit con Spinner */}
+          <Button 
+            type="submit" 
+            className="w-100 mt-3" 
+            variant="primary" 
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                  className="me-2"
+                />
+                Validando y Registrando...
+              </>
+            ) : (
+              'Registrar Usuario'
+            )}
           </Button>
         </Form>
 
-        <Button className="w-100 mt-4" variant="secondary" onClick={handleVolver}>
+        <Button 
+          className="w-100 mt-4" 
+          variant="secondary" 
+          onClick={handleVolver} 
+          disabled={isLoading}
+        >
           Volver a la página principal
         </Button>
       </div>

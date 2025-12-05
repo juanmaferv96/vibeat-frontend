@@ -53,6 +53,9 @@ function ResumenCompraEntrada() {
   const pdfUrl = React.useMemo(() => {
     const params = new URLSearchParams();
     params.set('eventoNombre', nombreEvento);
+    if (evento && evento.descripcion) {
+        params.set('eventoDesc', evento.descripcion);
+    }
     if (usuarioLogin) params.set('usuarioLogin', usuarioLogin);
     if (tipoEntrada?.descripcion) params.set('tipoDesc', tipoEntrada.descripcion);
     return `${base}?${params.toString()}`;

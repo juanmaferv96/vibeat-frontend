@@ -2,12 +2,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../api/apiClient';
-import { Form, Button, Container, Alert } from 'react-bootstrap';
+// 1. Añadimos Spinner a los imports
+import { Form, Button, Container, Alert, Spinner } from 'react-bootstrap';
 
 function Login() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ user: '', password: '' });
   const [error, setError] = useState('');
+  // 2. Nuevo estado para controlar la carga
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,6 +27,9 @@ function Login() {
       return;
     }
 
+    // Activamos el loader antes de empezar la llamada
+    setIsLoading(true);
+
     try {
       // Solo trabajamos con usuarios (la parte Empresa desaparece)
       const response = await apiClient.get('/usuarios');
@@ -35,11 +41,13 @@ function Login() {
 
       if (!entidad) {
         setError('El nombre de usuario no existe');
+        setIsLoading(false); // Apagamos loader si hay error lógico
         return;
       }
 
       if (entidad.password !== password) {
         setError('Contraseña incorrecta');
+        setIsLoading(false); // Apagamos loader si hay error de contraseña
         return;
       }
 
@@ -49,9 +57,13 @@ function Login() {
       localStorage.setItem('entidad_id', entidad.id);
       localStorage.setItem('tipoUsuario', 'usuario'); // fijo a 'usuario'
       localStorage.setItem('entidad', JSON.stringify(entidadSinPassword));
+      
+      // No hace falta poner setIsLoading(false) aquí porque al navegar
+      // el componente se desmonta y cambiamos de página.
       navigate('/home');
     } catch {
       setError('Error al conectar con el servidor');
+      setIsLoading(false); // Apagamos loader si falla la conexión
     }
   };
 
@@ -71,6 +83,8 @@ function Login() {
               placeholder="Introduce tu usuario"
               value={formData.user}
               onChange={handleChange}
+              // Deshabilitamos inputs mientras carga para evitar ediciones
+              disabled={isLoading}
               autoComplete="username"
             />
           </Form.Group>
@@ -83,17 +97,37 @@ function Login() {
               placeholder="Introduce tu contraseña"
               value={formData.password}
               onChange={handleChange}
+              disabled={isLoading}
               autoComplete="current-password"
             />
           </Form.Group>
 
           {error && <Alert variant="danger" className="text-center">{error}</Alert>}
 
-          <Button variant="primary" type="submit" className="w-100 mb-3">
-            Iniciar Sesión
+          {/* 3. Lógica del botón: deshabilita y muestra Spinner si carga */}
+          <Button variant="primary" type="submit" className="w-100 mb-3" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                />{' '}
+                Cargando...
+              </>
+            ) : (
+              'Iniciar Sesión'
+            )}
           </Button>
 
-          <Button variant="outline-secondary" className="w-100" onClick={handleGoToWelcome}>
+          <Button 
+            variant="outline-secondary" 
+            className="w-100" 
+            onClick={handleGoToWelcome}
+            disabled={isLoading} // También deshabilitamos volver mientras carga
+          >
             Volver a la página principal
           </Button>
         </Form>

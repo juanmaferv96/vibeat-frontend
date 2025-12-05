@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Container, Form, Button, Alert, Row, Col } from 'react-bootstrap';
+import { Container, Form, Button, Alert, Row, Col, Spinner } from 'react-bootstrap'; // 1. Añadimos Spinner
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-//import axios from 'axios';
 import apiClient from '../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 
@@ -28,7 +27,10 @@ function FormularioEventoNoOficial() {
   ]);
   const [numeroAtencionCliente, setNumeroAtencionCliente] = useState('');
   const [emailAtencionCliente, setEmailAtencionCliente] = useState('');
+  
   const [error, setError] = useState('');
+  // 2. Estado de carga
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleTipoEntradaChange = (index, field, value) => {
     const nuevasEntradas = [...tiposEntrada];
@@ -67,6 +69,7 @@ function FormularioEventoNoOficial() {
     e.preventDefault();
     setError('');
 
+    // --- VALIDACIONES LOCALES (Síncronas - No activan loader) ---
     const telefonoRegex = /^[0-9]{9,15}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -115,10 +118,10 @@ function FormularioEventoNoOficial() {
       }
     }
 
+    // --- PREPARACIÓN DE DATOS ---
     const tiposEntradaProcesados = tiposEntrada.map((entrada) => ({
       ...entrada,
       entradasDisponibles: parseInt(entrada.totalEntradas),
-      // CAMBIO: premiosEntregados -> premiosDisponibles (inicializa con numeroPremiadas)
       premiosDisponibles: parseInt(entrada.numeroPremiadas) || 0
     }));
 
@@ -135,37 +138,59 @@ function FormularioEventoNoOficial() {
       usuarioId: parseInt(localStorage.getItem('entidad_id'))
     };
 
+    // --- PROCESO DE CARGA Y ENVÍO ---
+    setIsLoading(true);
+
     try {
-      await apiClient.post('/eventos-no-oficiales', evento);
+      // Usamos Promise.all para asegurar un tiempo mínimo de carga (UX)
+      await Promise.all([
+        apiClient.post('/eventos-no-oficiales', evento),
+        new Promise((resolve) => setTimeout(resolve, 800)) // Espera mínima de 0.8s
+      ]);
+      
+      // Si todo va bien, navegamos (el componente se desmonta, no hace falta setIsLoading(false))
       navigate('/mis-eventos');
+
     } catch (err) {
+      // Si falla, mostramos error y apagamos el loader
       if (err.response && err.response.data) {
         setError(err.response.data.message || 'Error al crear el evento');
       } else {
         setError('Error al crear el evento');
       }
+      setIsLoading(false);
     }
   };
 
   return (
     <Container className="d-flex justify-content-center align-items-center flex-grow-1 py-5" style={{ backgroundColor: '#eaf2fb' }}>
       <div className="border rounded p-5 shadow mx-auto w-100" style={{ maxWidth: '800px', backgroundColor: '#cfe2f3' }}>
-        <h2 className="text-center mb-4" style={{ color: '#2c5aa0' }}>Formulario para Evento No Oficial</h2>
+        <h2 className="text-center mb-4" style={{ color: '#2c5aa0' }}>Formulario para Evento</h2>
 
         {error && <Alert variant="danger">{error}</Alert>}
 
         <Form onSubmit={handleSubmit}>
-          {/* ... resto del formulario idéntico ... */}
+          {/* Nombre */}
           <Form.Group className="mb-3">
             <Form.Label>Nombre del Evento</Form.Label>
-            <Form.Control value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            <Form.Control 
+              value={nombre} 
+              onChange={(e) => setNombre(e.target.value)} 
+              disabled={isLoading} 
+            />
           </Form.Group>
 
+          {/* Lugar */}
           <Form.Group className="mb-3">
             <Form.Label>Lugar</Form.Label>
-            <Form.Control value={lugar} onChange={(e) => setLugar(e.target.value)} />
+            <Form.Control 
+              value={lugar} 
+              onChange={(e) => setLugar(e.target.value)} 
+              disabled={isLoading} 
+            />
           </Form.Group>
 
+          {/* Descripción */}
           <Form.Group className="mb-3">
             <Form.Label>Descripción del Evento</Form.Label>
             <Form.Control
@@ -175,10 +200,12 @@ function FormularioEventoNoOficial() {
               value={descripcionEvento}
               onChange={(e) => setDescripcionEvento(e.target.value)}
               className={descripcionEvento.length > 500 ? 'is-invalid' : ''}
+              disabled={isLoading}
             />
             <div className={`text-end small ${descripcionEvento.length > 500 ? 'text-danger' : ''}`}>{descripcionEvento.length}/500</div>
           </Form.Group>
 
+          {/* Fechas */}
           <Row>
             <Col>
               <Form.Label>Fecha Inicio</Form.Label>
@@ -189,6 +216,7 @@ function FormularioEventoNoOficial() {
                 timeIntervals={15}
                 dateFormat="Pp"
                 className="form-control"
+                disabled={isLoading}
               />
             </Col>
             <Col>
@@ -200,34 +228,72 @@ function FormularioEventoNoOficial() {
                 timeIntervals={15}
                 dateFormat="Pp"
                 className="form-control"
+                disabled={isLoading}
               />
             </Col>
           </Row>
 
+          {/* Selector cantidad tipos entrada */}
           <Form.Group className="mt-4 mb-3">
             <Form.Label>Número de Tipos de Entrada</Form.Label>
-            <Form.Select value={numeroTiposEntrada} onChange={e => setNumeroTiposEntrada(parseInt(e.target.value))}>
+            <Form.Select 
+              value={numeroTiposEntrada} 
+              onChange={handleNumeroTiposChange} // Usamos la función handler, no inline
+              disabled={isLoading}
+            >
               {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n}</option>)}
             </Form.Select>
           </Form.Group>
 
+          {/* Tipos de Entrada */}
           {tiposEntrada.map((entrada, i) => (
             <div key={i} className="border rounded p-3 mb-3" style={{ backgroundColor: '#ffffff' }}>
               <h5 className="text-primary">Tipo de entrada {i + 1}</h5>
               <Row className="mb-2">
-                <Col><Form.Control placeholder="Nombre" value={entrada.nombre} onChange={(e) => handleTipoEntradaChange(i, 'nombre', e.target.value)} /></Col>
-                <Col><Form.Control type="number" placeholder="Precio" value={entrada.precio} onChange={(e) => handleTipoEntradaChange(i, 'precio', e.target.value)} /></Col>
+                <Col>
+                  <Form.Control 
+                    placeholder="Nombre" 
+                    value={entrada.nombre} 
+                    onChange={(e) => handleTipoEntradaChange(i, 'nombre', e.target.value)} 
+                    disabled={isLoading}
+                  />
+                </Col>
+                <Col>
+                  <Form.Control 
+                    type="number" 
+                    placeholder="Precio" 
+                    value={entrada.precio} 
+                    onChange={(e) => handleTipoEntradaChange(i, 'precio', e.target.value)} 
+                    disabled={isLoading}
+                  />
+                </Col>
               </Row>
               <Row className="mb-2">
-                <Col><Form.Control type="number" placeholder="Total entradas" value={entrada.totalEntradas} onChange={(e) => handleTipoEntradaChange(i, 'totalEntradas', e.target.value)} /></Col>
-                <Col><Form.Control type="number" placeholder="Entradas premiadas" value={entrada.numeroPremiadas} onChange={(e) => handleTipoEntradaChange(i, 'numeroPremiadas', e.target.value)} /></Col>
+                <Col>
+                  <Form.Control 
+                    type="number" 
+                    placeholder="Total entradas" 
+                    value={entrada.totalEntradas} 
+                    onChange={(e) => handleTipoEntradaChange(i, 'totalEntradas', e.target.value)} 
+                    disabled={isLoading}
+                  />
+                </Col>
+                <Col>
+                  <Form.Control 
+                    type="number" 
+                    placeholder="Entradas premiadas" 
+                    value={entrada.numeroPremiadas} 
+                    onChange={(e) => handleTipoEntradaChange(i, 'numeroPremiadas', e.target.value)} 
+                    disabled={isLoading}
+                  />
+                </Col>
               </Row>
               <Row className="mb-2">
                 <Col>
                   <Form.Select
                     value={entrada.tipoSorteo}
                     onChange={(e) => handleTipoEntradaChange(i, 'tipoSorteo', e.target.value)}
-                    disabled={parseInt(entrada.numeroPremiadas) === 0}
+                    disabled={parseInt(entrada.numeroPremiadas) === 0 || isLoading}
                   >
                     <option value="NO">NO</option>
                     <option value="MANUAL">MANUAL - Se elegirá el premio en el momento del sorteo</option>
@@ -242,25 +308,68 @@ function FormularioEventoNoOficial() {
                       placeholder="Nombre del premio"
                       value={entrada.nombrePremio}
                       onChange={(e) => handleTipoEntradaChange(i, 'nombrePremio', e.target.value)}
+                      disabled={isLoading}
                     />
                   </Col>
                 </Row>
               )}
-              <Form.Control as="textarea" rows={2} placeholder="Descripción" value={entrada.descripcion} onChange={(e) => handleTipoEntradaChange(i, 'descripcion', e.target.value)} />
+              <Form.Control 
+                as="textarea" 
+                rows={2} 
+                placeholder="Descripción" 
+                value={entrada.descripcion} 
+                onChange={(e) => handleTipoEntradaChange(i, 'descripcion', e.target.value)} 
+                disabled={isLoading}
+              />
             </div>
           ))}
 
+          {/* Contacto */}
           <Form.Group className="mb-3">
             <Form.Label>Número de Atención al Cliente</Form.Label>
-            <Form.Control type="tel" inputMode="numeric" pattern="[0-9]*" value={numeroAtencionCliente} onChange={(e) => setNumeroAtencionCliente(e.target.value)} />
+            <Form.Control 
+              type="tel" 
+              inputMode="numeric" 
+              pattern="[0-9]*" 
+              value={numeroAtencionCliente} 
+              onChange={(e) => setNumeroAtencionCliente(e.target.value)} 
+              disabled={isLoading}
+            />
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Email de Atención al Cliente</Form.Label>
-            <Form.Control type="email" value={emailAtencionCliente} onChange={(e) => setEmailAtencionCliente(e.target.value)} />
+            <Form.Control 
+              type="email" 
+              value={emailAtencionCliente} 
+              onChange={(e) => setEmailAtencionCliente(e.target.value)} 
+              disabled={isLoading}
+            />
           </Form.Group>
 
-          <Button type="submit" variant="primary" className="w-100 mt-3">Crear evento</Button>
+          {/* Botón de Submit modificado */}
+          <Button 
+            type="submit" 
+            variant="primary" 
+            className="w-100 mt-3"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                  className="me-2"
+                />
+                Creando evento...
+              </>
+            ) : (
+              'Crear evento'
+            )}
+          </Button>
         </Form>
       </div>
     </Container>
